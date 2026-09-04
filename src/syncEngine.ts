@@ -253,8 +253,18 @@ export class SynkkSyncEngine {
       new Notice(summary);
     } catch (err: any) {
       console.error('Synkk sync error:', err);
-      this.onStatusChange?.('Sync error: ' + (err.message || 'Unknown'), false);
-      new Notice(`Synkk sync error: ${err.message || 'Unknown'}`);
+
+      if (err.message && (err.message.includes('remote_wipe') || err.message.includes('Device Wiped') || err.message.includes('410'))) {
+        this.stateData = { lastSyncVersion: 0, files: {} };
+        await this.saveState();
+        await this.saveSettings({ deviceToken: '' });
+        new Notice('Synkk Security: This device token was remotely wiped by an enterprise administrator.', 10000);
+        this.onStatusChange?.('Device Remotely Wiped', false);
+      } else {
+        this.onStatusChange?.('Sync error: ' + (err.message || 'Unknown'), false);
+        new Notice(`Synkk sync error: ${err.message || 'Unknown'}`);
+      }
+
       errors++;
     } finally {
       this.isSyncing = false;
