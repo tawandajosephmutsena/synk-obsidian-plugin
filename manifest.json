@@ -1,0 +1,10 @@
+{
+  "id": "synkk-sync",
+  "name": "Synkk Team Vault Sync",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Cross-platform encrypted sync with role and path-level permissions hosted on your own server.",
+  "author": "Synkk",
+  "authorUrl": "https://synkk.ottomate.space",
+  "isDesktopOnly": false
+}

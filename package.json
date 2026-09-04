@@ -1,0 +1,20 @@
+{
+  "name": "synkk-sync",
+  "version": "1.0.0",
+  "description": "Cross-platform encrypted team synchronization for Obsidian powered by Synkk",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production"
+  },
+  "keywords": ["obsidian", "obsidian-plugin", "sync", "team-collaboration"],
+  "author": "Synkk",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "esbuild": "0.20.0",
+    "obsidian": "latest",
+    "tslib": "2.6.2",
+    "typescript": "^5.3.3"
+  }
+}
