@@ -5,9 +5,15 @@
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "node esbuild.config.mjs production"
+    "build": "node esbuild.config.mjs production",
+    "version": "node version-bump.mjs && git add manifest.json versions.json"
   },
-  "keywords": ["obsidian", "obsidian-plugin", "sync", "team-collaboration"],
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "sync",
+    "team-collaboration"
+  ],
   "author": "Synkk",
   "license": "MIT",
   "devDependencies": {
