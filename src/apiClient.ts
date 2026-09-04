@@ -149,4 +149,26 @@ export class SynkkApiClient {
       throw new Error(`Failed to delete ${path}: HTTP ${res.status}`);
     }
   }
+
+  public async batchSync(
+    vaultSlug: string,
+    items: Array<{ action?: 'upload' | 'delete'; path: string; content_base64?: string; base_version?: number }>
+  ): Promise<{ status: string; latest_version: number; summary: any; items: any[] }> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/batch-sync`;
+    const res = await requestUrl({
+      url,
+      method: 'POST',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ items }),
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`Batch sync failed: HTTP ${res.status} - ${res.text}`);
+    }
+
+    return res.json;
+  }
 }
