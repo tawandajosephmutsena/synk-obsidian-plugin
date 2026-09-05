@@ -129,6 +129,8 @@ export class SynkkSyncEngine {
         if (this.shouldIgnore(remoteFile.path)) continue;
 
         let needsDownload = false;
+        let isConflict = false;
+        let localConflictBuffer: ArrayBuffer | null = null;
         const exists = await this.app.vault.adapter.exists(remoteFile.path);
 
         if (!exists) {
@@ -138,13 +140,31 @@ export class SynkkSyncEngine {
           const localSha = await this.computeSha256(localBuffer);
 
           if (localSha !== remoteFile.sha256) {
-            // Hash differs! Download remote version
+            // Hash differs! Check if local was modified or newly created concurrently
+            const lastKnown = this.stateData.files[remoteFile.path];
+            if (!lastKnown || lastKnown.sha256 !== localSha) {
+              // Local was changed or newly created: concurrent conflict!
+              isConflict = true;
+              localConflictBuffer = localBuffer;
+            }
             needsDownload = true;
           }
         }
 
         if (needsDownload) {
           try {
+            if (isConflict && localConflictBuffer) {
+              // Fork local modifications to a conflict file so work is never lost
+              const extMatch = remoteFile.path.match(/(\.[^.]+)$/);
+              const conflictPath = extMatch
+                ? remoteFile.path.replace(/(\.[^.]+)$/, `.sync-conflict-${Date.now()}$1`)
+                : `${remoteFile.path}.sync-conflict-${Date.now()}`;
+
+              await this.app.vault.adapter.writeBinary(conflictPath, localConflictBuffer);
+              conflicts++;
+              new Notice(`Synkk: Local modification conflict on "${remoteFile.path}". Forked local copy to "${conflictPath}".`, 8000);
+            }
+
             this.onStatusChange?.(`Pulling ${remoteFile.path}...`, true);
             const buffer = await this.api.downloadFile(vaultSlug, remoteFile.path);
 
