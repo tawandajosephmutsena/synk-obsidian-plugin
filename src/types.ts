@@ -7,6 +7,13 @@ export interface SynkkSettings {
   syncIntervalMinutes: number;
   syncOnStartup: boolean;
   syncOnFileChange: boolean;
+  includedPaths: string;
+  excludedPaths: string;
+  syncPluginList: boolean;
+  syncSnippets: boolean;
+  syncPluginData: boolean;
+  deletionThresholdPercent: number;
+  safetyOverrideForNextSync: boolean;
   lastSyncTime: number;
   lastSyncVersion: number;
   userRootPermission: string;
@@ -21,6 +28,13 @@ export const DEFAULT_SETTINGS: SynkkSettings = {
   syncIntervalMinutes: 5,
   syncOnStartup: true,
   syncOnFileChange: false,
+  includedPaths: '',
+  excludedPaths: '',
+  syncPluginList: false,
+  syncSnippets: false,
+  syncPluginData: false,
+  deletionThresholdPercent: 10,
+  safetyOverrideForNextSync: false,
   lastSyncTime: 0,
   lastSyncVersion: 0,
   userRootPermission: 'read_write',

@@ -1,114 +1,93 @@
 # Synkk Team Vault Sync
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Obsidian Min Version](https://img.shields.io/badge/Obsidian-0.15.0+-purple.svg)](https://obsidian.md)
-[![Platform](https://img.shields.io/badge/Platform-Desktop%20%7C%20iOS%20%7C%20Android-green.svg)](https://obsidian.md)
+<p align="center">
+  <img src="assets/github/synkk-logo.svg" alt="Synkk - Obsidian everywhere" width="360">
+</p>
 
-**Synkk Team Vault Sync** is an Obsidian plugin that provides end-to-end synchronization between Obsidian vaults and your self-hosted or managed [Synkk](https://github.com/synkk/synkk) server.
+<p align="center">
+  <strong>Whole-file team vault sync for Obsidian, powered by a self-hosted Synkk server.</strong>
+</p>
 
-Designed specifically for teams and distributed organizations, Synkk allows multi-user collaboration with role-based access control, path-level permissions, and background synchronization across **Desktop (macOS, Windows, Linux)** and **Mobile (iOS, Android)**.
+<p align="center">
+  <a href="https://synkk.ottomate.space">Website</a> ·
+  <a href="https://synkk.ottomate.space/docs">Docs</a> ·
+  <a href="https://github.com/tawandajosephmutsena/synkk">Server repo</a> ·
+  <a href="https://github.com/tawandajosephmutsena/synk-obsidian-plugin/releases/tag/1.0.0">v1.0.0 release</a> ·
+  <a href="https://ottomate.space">Ottomate</a>
+</p>
 
----
+![Synkk plugin connected to the web dashboard](assets/github/dashboard-overview.webp)
 
-## Features
+Synkk Team Vault Sync connects an Obsidian vault to a Synkk team server. It is designed for teams that need private infrastructure, member/device access control, path-specific permissions, and recoverable sync history without turning every user into a Git operator.
 
-- **Cross-Platform**: Seamless synchronization on macOS, Windows, Linux, iPhone, iPad, and Android.
-- **Self-Hosted & Private**: Connect to your organization's own Synkk backend with zero third-party telemetry.
-- **Team-Aware**: Manage role-based access (read, write, admin) and path-scoped restrictions.
-- **Background & Startup Sync**: Automatically sync changes in configurable intervals (1, 2, 5, 10, or 30 minutes) or immediately upon app startup.
-- **Conflict Handling**: Reliable SHA-256 fingerprinting and timestamp-based conflict tracking.
+## Product Screens
 
----
+| Web Dashboard | Markdown Editor |
+| --- | --- |
+| ![Synkk dashboard showing vault health, sync events, and activity](assets/github/dashboard-overview.webp) | ![Synkk Markdown editor showing source mode, outline, and preview](assets/github/editor-full.webp) |
 
-## Installation
+| Graph View | Permissions Matrix |
+| --- | --- |
+| ![Synkk graph view showing linked notes and graph navigation](assets/github/graph-full.webp) | ![Synkk permissions matrix showing member path access rules](assets/github/permissions-full.webp) |
 
-### Method 1: Obsidian Community Plugins (Official)
+## Foundation Release Capabilities
 
-Once listed in the Obsidian Community Plugins directory:
+- macOS, Windows, Linux, iOS, and Android support through Obsidian's plugin runtime.
+- Startup, scheduled, and manual whole-file sync.
+- Device tokens, team membership, and path-level `read_write`, `read_only`, and `hidden` permissions through the Synkk server.
+- SHA-256 content verification and preserved `*.sync-conflict-*.md` copies for concurrent writes.
+- Per-device include/exclude folder rules.
+- Optional `.obsidian` syncing for plugin lists, snippets, and plugin data.
+- Device-local workspace, hotkeys, caches, and Synkk state so desktop and mobile layouts do not fight each other.
+- Atomic Safety Shield with deletion thresholds, one-time override, and local snapshots before remote overwrites/deletions.
+- Web Time Machine for server-side file-version rollback.
 
-1. Open Obsidian on your computer or mobile phone.
-2. Go to **Settings → Community plugins**.
-3. Turn off **Restricted mode** if enabled.
-4. Click **Browse** and search for **Synkk Team Vault Sync**.
-5. Click **Install**, then **Enable**.
+## Important Limits
 
----
+This is not CRDT synchronization yet. It does not perform character-level merges, peer-to-peer transport, QR pairing, zero-knowledge client-side encryption, delta attachment transfer, virtual/ghost files, native mobile background execution, or official Obsidian Community Plugins distribution.
 
-### Method 2: Via BRAT (Recommended for Beta / Internal Team Installs)
+The server receives file contents so it can store, authorize, version, and restore them. Deploy Synkk only over HTTPS and on infrastructure you trust.
 
-If your team needs immediate access before official directory approval or for private builds:
+## Install The GitHub Public Beta
 
-1. In Obsidian, go to **Settings → Community plugins → Browse**.
-2. Search for **BRAT** (*Obsidian42 - BRAT*) and install/enable it.
-3. Open **Settings → BRAT**.
-4. Click **Add Beta plugin**.
-5. Paste the GitHub repository URL of this plugin:
-   ```text
-   https://github.com/<your-org>/obsidian-synkk-sync
-   ```
-6. BRAT will automatically download `manifest.json`, `main.js`, and `styles.css`, enable the plugin, and keep it updated on team phones and desktops.
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [v1.0.0 release](https://github.com/tawandajosephmutsena/synk-obsidian-plugin/releases/tag/1.0.0).
+2. Create `<vault>/.obsidian/plugins/synkk-sync/`.
+3. Place the three release files in that directory.
+4. In Obsidian, open **Settings -> Community plugins** and enable **Synkk Team Vault Sync**.
+5. In **Settings -> Synkk Vault Sync**, enter your HTTPS server URL ending in `/api/v1`, add a device token from Synkk, and choose the target vault.
 
----
+Synkk is currently distributed through GitHub. Obsidian Community Plugins and BRAT distribution are planned separately.
 
-### Method 3: Manual Installation
-
-1. Download `manifest.json`, `main.js`, and `styles.css` from the [Latest Release](https://github.com/<your-org>/obsidian-synkk-sync/releases/latest).
-2. Create a folder in your vault: `<vault-root>/.obsidian/plugins/synkk-sync/`.
-3. Place the downloaded files into that folder.
-4. Reload Obsidian and enable **Synkk Team Vault Sync** in **Settings → Community plugins**.
-
----
-
-## Configuration
-
-1. In Obsidian, navigate to **Settings → Synkk Vault Sync**.
-2. **Server API URL**: Enter your Synkk instance endpoint (e.g., `https://synkk.yourdomain.com/api/v1`).
-3. **Device Sync Token**: Enter the device token generated from your user profile on the Synkk web dashboard.
-4. Click **Verify & Load Vaults** to test the connection and authenticate your device.
-5. Under **Target Vault**, select the team vault assigned to you.
-6. (Optional) Configure **Automatic Background Sync** and **Sync Interval**.
-
----
-
-## Development & Building
-
-### Prerequisites
-
-- Node.js 18+
-- npm
-
-### Setup
+## Development
 
 ```bash
-git clone https://github.com/<your-org>/obsidian-synkk-sync.git
-cd obsidian-synkk-sync
-npm install
-```
-
-### Development Mode
-
-Runs esbuild with file watching:
-```bash
-npm run dev
-```
-
-### Production Build
-
-Minifies and bundles into `main.js`:
-```bash
+npm ci
 npm run build
 ```
 
-### Releasing a New Version
+The production command emits `main.js`; release packages also include the committed `manifest.json` and `styles.css`.
 
-```bash
-npm version patch # or minor / major
-git push origin main --tags
-```
-The automated GitHub Actions workflow will build the bundle and attach `main.js`, `manifest.json`, and `styles.css` directly to the GitHub Release.
+## Links
 
----
+- Public app: [synkk.ottomate.space](https://synkk.ottomate.space)
+- Documentation: [synkk.ottomate.space/docs](https://synkk.ottomate.space/docs)
+- Server repo: [github.com/tawandajosephmutsena/synkk](https://github.com/tawandajosephmutsena/synkk)
+- Plugin repo: [github.com/tawandajosephmutsena/synk-obsidian-plugin](https://github.com/tawandajosephmutsena/synk-obsidian-plugin)
+- Creator studio: [Ottomate](https://ottomate.space)
+- Commercial license: Lemon Squeezy checkout opens after live checkout and activation verification.
+- AppSumo: planned after the public GitHub release path is stable.
+
+## Roadmap
+
+- **Foundation:** selective sync, `.obsidian` controls, Atomic Safety Shield, snapshots, and file-version rollback.
+- **Launch hardening:** official onboarding docs, checkout/activation verification, and clearer public release packaging.
+- **Next:** QR pairing, encrypted transport design, CRDT collaboration, visual conflict sandbox, virtual files, and smarter attachment sync.
+- **Later:** peer-assisted relay transport, native mobile background sync, and folder/team federation.
+
+## Creators
+
+Synkk is created by [Ottomate](https://ottomate.space). Product direction and engineering are led by [Tawanda Joseph Mutsena](https://github.com/tawandajosephmutsena).
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+The plugin is licensed under the [MIT License](LICENSE).

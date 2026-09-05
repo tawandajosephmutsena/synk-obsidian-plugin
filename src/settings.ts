@@ -106,6 +106,92 @@ export class SynkkSettingTab extends PluginSettingTab {
       });
     });
 
+    containerEl.createEl('h3', { text: 'Selective Sync & Configuration' });
+
+    new Setting(containerEl)
+      .setName('Include folders')
+      .setDesc('Optional newline-separated vault folder prefixes. Leave blank to sync all eligible files.')
+      .addTextArea((text) =>
+        text
+          .setPlaceholder('00-Inbox\nDaily Notes')
+          .setValue(this.plugin.settings.includedPaths)
+          .onChange(async (value) => {
+            this.plugin.settings.includedPaths = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Exclude folders')
+      .setDesc('Newline-separated prefixes to keep on this device only, even when included elsewhere.')
+      .addTextArea((text) =>
+        text
+          .setPlaceholder('99-Archive\nattachments/video')
+          .setValue(this.plugin.settings.excludedPaths)
+          .onChange(async (value) => {
+            this.plugin.settings.excludedPaths = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    containerEl.createEl('h4', { text: '.obsidian configuration' });
+
+    new Setting(containerEl)
+      .setName('Sync plugin list')
+      .setDesc('Sync community-plugins.json. Layout, workspace, hotkeys, and Synkk local state always remain device-local.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.syncPluginList).onChange(async (value) => {
+          this.plugin.settings.syncPluginList = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('Sync CSS snippets')
+      .setDesc('Sync files under .obsidian/snippets.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.syncSnippets).onChange(async (value) => {
+          this.plugin.settings.syncSnippets = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('Sync plugin data')
+      .setDesc('Sync files under .obsidian/plugins. Only enable this for plugins whose data is safe across device types.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.syncPluginData).onChange(async (value) => {
+          this.plugin.settings.syncPluginData = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    containerEl.createEl('h3', { text: 'Atomic Safety Shield' });
+
+    new Setting(containerEl)
+      .setName('Deletion safety threshold')
+      .setDesc('Stop a sync when incoming or outgoing deletions exceed this percentage of selected tracked files.')
+      .addSlider((slider) =>
+        slider
+          .setLimits(1, 100, 1)
+          .setValue(this.plugin.settings.deletionThresholdPercent)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.deletionThresholdPercent = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Allow next guarded sync')
+      .setDesc('One-time override for a Safety Shield halt. It is consumed only when a deletion set exceeds your threshold.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.safetyOverrideForNextSync).onChange(async (value) => {
+          this.plugin.settings.safetyOverrideForNextSync = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
     containerEl.createEl('h3', { text: 'Sync Schedule & Automation' });
 
     // Auto-Sync Toggle

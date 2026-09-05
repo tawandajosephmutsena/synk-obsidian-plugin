@@ -1,6 +1,14 @@
-import { App, Notice, TFile } from 'obsidian';
+import { App, Notice } from 'obsidian';
 import { SynkkApiClient } from './apiClient';
+import { deletionGuard, shouldSyncPath } from './sync-policy';
 import { LocalFileState, SyncStateData, SynkkSettings } from './types';
+
+interface SyncResult {
+  pulled: number;
+  pushed: number;
+  conflicts: number;
+  errors: number;
+}
 
 export class SynkkSyncEngine {
   private app: App;
@@ -50,14 +58,62 @@ export class SynkkSyncEngine {
     }
   }
 
-  private shouldIgnore(path: string): boolean {
-    if (path.startsWith('.obsidian') || path.startsWith('.git') || path.startsWith('.trash')) {
-      return true;
+  private shouldSync(path: string): boolean {
+    return shouldSyncPath(path, this.getSettings());
+  }
+
+  private selectedTrackedPaths(): string[] {
+    return Object.keys(this.stateData.files).filter((path) => this.shouldSync(path));
+  }
+
+  private async localDeletionPaths(): Promise<string[]> {
+    const deletedPaths: string[] = [];
+
+    for (const path of this.selectedTrackedPaths()) {
+      if (!await this.app.vault.adapter.exists(path)) {
+        deletedPaths.push(path);
+      }
     }
-    if (path.endsWith('.DS_Store') || path.includes('/.DS_Store')) {
-      return true;
+
+    return deletedPaths;
+  }
+
+  private safetyHalt(
+    direction: 'incoming' | 'outgoing',
+    paths: string[],
+    baselineCount: number,
+    percentage: number,
+    thresholdPercent: number,
+  ): SyncResult {
+    const sample = paths.slice(0, 3).join(', ');
+    const summary = `Synkk: Safety Shield stopped ${direction} deletion of ${paths.length}/${baselineCount} files (${percentage}%, limit ${thresholdPercent}%).`;
+
+    this.onStatusChange?.('Safety Shield requires confirmation.', false);
+    new Notice(`${summary} Review settings to allow one guarded sync. ${sample}`, 10000);
+
+    return { pulled: 0, pushed: 0, conflicts: 0, errors: 1 };
+  }
+
+  private async ensureDirectory(path: string): Promise<void> {
+    const segments = path.split('/').filter(Boolean);
+    let currentPath = '';
+
+    for (const segment of segments) {
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+      if (!await this.app.vault.adapter.exists(currentPath)) {
+        await this.app.vault.adapter.mkdir(currentPath);
+      }
     }
-    return false;
+  }
+
+  private async snapshotLocalFile(path: string): Promise<void> {
+    const contents = await this.app.vault.adapter.readBinary(path);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotPath = `.synkk/snapshots/${timestamp}/${path}`;
+    const directory = snapshotPath.substring(0, snapshotPath.lastIndexOf('/'));
+
+    await this.ensureDirectory(directory);
+    await this.app.vault.adapter.writeBinary(snapshotPath, contents);
   }
 
   public async computeSha256(buffer: ArrayBuffer): Promise<string> {
@@ -85,7 +141,7 @@ export class SynkkSyncEngine {
     return this.isSyncing;
   }
 
-  public async sync(): Promise<{ pulled: number; pushed: number; conflicts: number; errors: number }> {
+  public async sync(): Promise<SyncResult> {
     if (this.isSyncing) {
       new Notice('Synkk: A synchronization is already in progress.');
       return { pulled: 0, pushed: 0, conflicts: 0, errors: 0 };
@@ -112,21 +168,74 @@ export class SynkkSyncEngine {
       // STEP 1: Fetch remote manifest
       this.onStatusChange?.('Checking remote changes...', true);
       const manifest = await this.api.getManifest(vaultSlug, this.stateData.lastSyncVersion);
+      const baselineCount = this.selectedTrackedPaths().length;
+      const remoteDeletionPaths: string[] = [];
+
+      for (const deletedFile of manifest.deleted) {
+        if (this.shouldSync(deletedFile.path) && await this.app.vault.adapter.exists(deletedFile.path)) {
+          remoteDeletionPaths.push(deletedFile.path);
+        }
+      }
+
+      const localDeletionPaths = await this.localDeletionPaths();
+      const remoteDeletionGuard = deletionGuard(
+        remoteDeletionPaths,
+        baselineCount,
+        settings.deletionThresholdPercent,
+        settings.safetyOverrideForNextSync,
+      );
+      const localDeletionGuard = deletionGuard(
+        localDeletionPaths,
+        baselineCount,
+        settings.deletionThresholdPercent,
+        settings.safetyOverrideForNextSync,
+      );
+
+      if (remoteDeletionGuard.blocked) {
+        return this.safetyHalt(
+          'incoming',
+          remoteDeletionPaths,
+          baselineCount,
+          remoteDeletionGuard.percentage,
+          settings.deletionThresholdPercent,
+        );
+      }
+
+      if (localDeletionGuard.blocked) {
+        return this.safetyHalt(
+          'outgoing',
+          localDeletionPaths,
+          baselineCount,
+          localDeletionGuard.percentage,
+          settings.deletionThresholdPercent,
+        );
+      }
+
+      const safetyOverrideWasUsed = settings.safetyOverrideForNextSync
+        && (remoteDeletionGuard.percentage > settings.deletionThresholdPercent
+          || localDeletionGuard.percentage > settings.deletionThresholdPercent);
 
       // STEP 2: Handle remote deletions
       for (const del of manifest.deleted) {
-        if (this.shouldIgnore(del.path)) continue;
+        if (!this.shouldSync(del.path)) continue;
 
         if (await this.app.vault.adapter.exists(del.path)) {
-          await this.app.vault.adapter.remove(del.path);
-          delete this.stateData.files[del.path];
-          pulled++;
+          try {
+            await this.snapshotLocalFile(del.path);
+            await this.app.vault.adapter.remove(del.path);
+            delete this.stateData.files[del.path];
+            pulled++;
+          } catch (err: any) {
+            console.error(`Error applying remote deletion for ${del.path}:`, err);
+            errors++;
+            new Notice(`Synkk: Could not safely apply deletion for ${del.path}.`);
+          }
         }
       }
 
       // STEP 3: Handle remote additions and modifications (pull)
       for (const remoteFile of manifest.files) {
-        if (this.shouldIgnore(remoteFile.path)) continue;
+        if (!this.shouldSync(remoteFile.path)) continue;
 
         let needsDownload = false;
         let isConflict = false;
@@ -168,13 +277,15 @@ export class SynkkSyncEngine {
             this.onStatusChange?.(`Pulling ${remoteFile.path}...`, true);
             const buffer = await this.api.downloadFile(vaultSlug, remoteFile.path);
 
+            if (exists) {
+              await this.snapshotLocalFile(remoteFile.path);
+            }
+
             // Ensure directory exists
             const lastSlash = remoteFile.path.lastIndexOf('/');
             if (lastSlash !== -1) {
               const dir = remoteFile.path.substring(0, lastSlash);
-              if (!(await this.app.vault.adapter.exists(dir))) {
-                await this.app.vault.adapter.mkdir(dir);
-              }
+              await this.ensureDirectory(dir);
             }
 
             await this.app.vault.adapter.writeBinary(remoteFile.path, buffer);
@@ -205,7 +316,7 @@ export class SynkkSyncEngine {
 
       for (const file of allFiles) {
         const path = file.path;
-        if (this.shouldIgnore(path)) continue;
+        if (!this.shouldSync(path)) continue;
 
         try {
           const buffer = await this.app.vault.adapter.readBinary(path);
@@ -244,7 +355,7 @@ export class SynkkSyncEngine {
 
       // STEP 5: Detect and propagate local deletions
       for (const knownPath of Object.keys(this.stateData.files)) {
-        if (this.shouldIgnore(knownPath)) continue;
+        if (!this.shouldSync(knownPath)) continue;
 
         if (!(await this.app.vault.adapter.exists(knownPath))) {
           try {
@@ -260,12 +371,15 @@ export class SynkkSyncEngine {
       }
 
       // STEP 6: Finalize state
-      this.stateData.lastSyncVersion = manifest.vault.latest_version || 0;
+      if (errors === 0) {
+        this.stateData.lastSyncVersion = manifest.vault.latest_version || 0;
+      }
       await this.saveState();
 
       await this.saveSettings({
         lastSyncTime: Date.now(),
         lastSyncVersion: this.stateData.lastSyncVersion,
+        ...(safetyOverrideWasUsed ? { safetyOverrideForNextSync: false } : {}),
       });
 
       const summary = `Synkk: Complete (↓${pulled} ↑${pushed}${conflicts > 0 ? ` ⚠️${conflicts} conflicts` : ''})`;

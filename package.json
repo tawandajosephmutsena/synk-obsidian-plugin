@@ -1,11 +1,12 @@
 {
   "name": "synkk-sync",
   "version": "1.0.0",
-  "description": "Cross-platform encrypted team synchronization for Obsidian powered by Synkk",
+  "description": "Whole-file team vault synchronization for Obsidian powered by a self-hosted Synkk server",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
+    "test": "node --test tests/*.test.js",
     "version": "node version-bump.mjs && git add manifest.json versions.json"
   },
   "keywords": [
@@ -14,7 +15,15 @@
     "sync",
     "team-collaboration"
   ],
-  "author": "Synkk",
+  "author": "Ottomate",
+  "homepage": "https://synkk.ottomate.space",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tawandajosephmutsena/synk-obsidian-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tawandajosephmutsena/synk-obsidian-plugin/issues"
+  },
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.11.0",
