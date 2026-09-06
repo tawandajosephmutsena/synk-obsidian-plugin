@@ -119,5 +119,7 @@ export interface UploadResponse {
   is_conflict?: boolean;
   conflict_path?: string;
   original_path?: string;
+  has_secrets?: boolean;
+  detected_secrets?: string[];
   message?: string;
 }

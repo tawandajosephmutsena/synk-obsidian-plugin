@@ -32,9 +32,41 @@ export class SynkkApiClient {
     };
   }
 
+  private async request(params: RequestUrlParam): Promise<any> {
+    const res = await requestUrl({
+      ...params,
+      throw: false,
+    });
+
+    if (res.status === 410) {
+      const err: any = new Error('Synkk Security: This device token was remotely wiped by an enterprise administrator.');
+      err.status = 410;
+      err.isRemoteWipe = true;
+      throw err;
+    }
+
+    if (res.status === 401) {
+      const data = res.json;
+      const message = data?.message || 'Authentication failed: Invalid or revoked device token.';
+      const err: any = new Error(message);
+      err.status = 401;
+      throw err;
+    }
+
+    if (res.status === 403) {
+      const data = res.json;
+      const message = data?.message || 'Permission denied: Action or IP address not allowed.';
+      const err: any = new Error(message);
+      err.status = 403;
+      throw err;
+    }
+
+    return res;
+  }
+
   public async verifyAuth(): Promise<VerifyAuthResponse> {
     const url = `${this.serverUrl}/auth/verify`;
-    const res = await requestUrl({
+    const res = await this.request({
       url,
       method: 'GET',
       headers: this.getHeaders(),
@@ -49,7 +81,7 @@ export class SynkkApiClient {
 
   public async getVaults(): Promise<RemoteVault[]> {
     const url = `${this.serverUrl}/vaults`;
-    const res = await requestUrl({
+    const res = await this.request({
       url,
       method: 'GET',
       headers: this.getHeaders(),
@@ -65,7 +97,7 @@ export class SynkkApiClient {
 
   public async getManifest(vaultSlug: string, sinceVersion: number = 0): Promise<ManifestResponse> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/manifest?since_version=${sinceVersion}`;
-    const res = await requestUrl({
+    const res = await this.request({
       url,
       method: 'GET',
       headers: this.getHeaders(),
@@ -80,7 +112,7 @@ export class SynkkApiClient {
 
   public async downloadFile(vaultSlug: string, path: string): Promise<ArrayBuffer> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/download?path=${encodeURIComponent(path)}`;
-    const res = await requestUrl({
+    const res = await this.request({
       url,
       method: 'GET',
       headers: {
@@ -103,7 +135,7 @@ export class SynkkApiClient {
     baseVersion: number
   ): Promise<UploadResponse> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/upload`;
-    const res = await requestUrl({
+    const res = await this.request({
       url,
       method: 'POST',
       headers: {
@@ -117,11 +149,6 @@ export class SynkkApiClient {
       }),
     });
 
-    if (res.status === 403) {
-      const err = res.json;
-      throw new Error(err.message || `Permission denied on ${path}`);
-    }
-
     if (res.status !== 200 && res.status !== 201) {
       throw new Error(`Upload failed for ${path}: HTTP ${res.status} - ${res.text}`);
     }
@@ -131,7 +158,7 @@ export class SynkkApiClient {
 
   public async deleteFile(vaultSlug: string, path: string): Promise<void> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/delete`;
-    const res = await requestUrl({
+    const res = await this.request({
       url,
       method: 'POST',
       headers: {
@@ -140,10 +167,6 @@ export class SynkkApiClient {
       },
       body: JSON.stringify({ path }),
     });
-
-    if (res.status === 403) {
-      throw new Error(`Permission denied: cannot delete ${path}`);
-    }
 
     if (res.status !== 200) {
       throw new Error(`Failed to delete ${path}: HTTP ${res.status}`);
@@ -155,7 +178,7 @@ export class SynkkApiClient {
     items: Array<{ action?: 'upload' | 'delete'; path: string; content_base64?: string; base_version?: number }>
   ): Promise<{ status: string; latest_version: number; summary: any; items: any[] }> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/batch-sync`;
-    const res = await requestUrl({
+    const res = await this.request({
       url,
       method: 'POST',
       headers: {

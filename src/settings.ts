@@ -21,6 +21,64 @@ export class SynkkSettingTab extends PluginSettingTab {
       text: 'Synchronize this Obsidian vault with your Synkk team server. Fully compatible with Mac, Windows PC, iPhone (iOS), and Android.',
     });
 
+    // Instant Quick Connect (QR payload or connect string)
+    new Setting(containerEl)
+      .setName('⚡ Instant Quick Connect')
+      .setDesc('Paste your mobile QR scan code or pairing payload to auto-configure Server URL, Device Token, and Vault in 1 second.')
+      .addText((text) => {
+        text
+          .setPlaceholder('Paste {"v":1,"server":"...","token":"..."} or synkk:// link')
+          .onChange(async (val) => {
+            const trimmed = val.trim();
+            if (!trimmed) return;
+
+            try {
+              let parsed: { server?: string; token?: string; vault?: string; name?: string } | null = null;
+
+              if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                parsed = JSON.parse(trimmed);
+              } else if (trimmed.startsWith('synkk://')) {
+                const url = new URL(trimmed.replace('synkk://', 'http://synkk-placeholder/'));
+                parsed = {
+                  server: url.searchParams.get('server') || undefined,
+                  token: url.searchParams.get('token') || undefined,
+                  vault: url.searchParams.get('vault') || undefined,
+                };
+              } else if (trimmed.startsWith('synkk_')) {
+                parsed = { token: trimmed };
+              }
+
+              if (parsed && (parsed.server || parsed.token || parsed.vault)) {
+                if (parsed.server) {
+                  this.plugin.settings.serverUrl = parsed.server.trim();
+                }
+                if (parsed.token) {
+                  this.plugin.settings.deviceToken = parsed.token.trim();
+                }
+                if (parsed.vault) {
+                  this.plugin.settings.selectedVaultSlug = parsed.vault.trim();
+                }
+
+                await this.plugin.saveSettings();
+                this.plugin.apiClient.updateConfig(this.plugin.settings.serverUrl, this.plugin.settings.deviceToken);
+
+                // Auto-verify connection
+                try {
+                  const authRes = await this.plugin.apiClient.verifyAuth();
+                  const vaults = await this.plugin.apiClient.getVaults();
+                  new Notice(`⚡ Synkk paired instantly! Connected as ${authRes.user.name} (${authRes.team.name}) with ${vaults.length} vaults.`);
+                } catch {
+                  new Notice('⚡ Quick Connect applied! Please click "Verify & Load Vaults" below.');
+                }
+
+                this.display(); // Refresh settings tab view
+              }
+            } catch (err: any) {
+              new Notice(`Quick Connect error: ${err.message || 'Invalid format'}`);
+            }
+          });
+      });
+
     // Server URL
     new Setting(containerEl)
       .setName('Server API URL')

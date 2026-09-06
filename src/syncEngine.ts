@@ -331,6 +331,11 @@ export class SynkkSyncEngine {
 
             const res = await this.api.uploadFile(vaultSlug, path, base64, baseVersion);
 
+            if (res.has_secrets && res.detected_secrets && res.detected_secrets.length > 0) {
+              const detected = res.detected_secrets.join(', ');
+              new Notice(`⚠️ Synkk DLP Guard: Potential secret pattern detected in "${path}" (${detected}). Team audit logged.`, 9000);
+            }
+
             if (res.status === 'conflict') {
               conflicts++;
               new Notice(`Synkk: Conflict on "${path}". Saved version as "${res.path}".`, 6000);
@@ -388,11 +393,11 @@ export class SynkkSyncEngine {
     } catch (err: any) {
       console.error('Synkk sync error:', err);
 
-      if (err.message && (err.message.includes('remote_wipe') || err.message.includes('Device Wiped') || err.message.includes('410'))) {
+      if (err.isRemoteWipe || err.status === 410 || (err.message && (err.message.includes('remote_wipe') || err.message.includes('Device Wiped') || err.message.includes('410')))) {
         this.stateData = { lastSyncVersion: 0, files: {} };
         await this.saveState();
         await this.saveSettings({ deviceToken: '' });
-        new Notice('Synkk Security: This device token was remotely wiped by an enterprise administrator.', 10000);
+        new Notice('🚨 Synkk Security: This device was remotely wiped by an enterprise administrator. Local sync credentials have been purged.', 12000);
         this.onStatusChange?.('Device Remotely Wiped', false);
       } else {
         this.onStatusChange?.('Sync error: ' + (err.message || 'Unknown'), false);
