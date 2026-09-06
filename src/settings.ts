@@ -192,7 +192,17 @@ export class SynkkSettingTab extends PluginSettingTab {
           })
       );
 
-    containerEl.createEl('h4', { text: '.obsidian configuration' });
+    containerEl.createEl('h4', { text: 'Vault Environment & Plugin Suite Sync' });
+
+    new Setting(containerEl)
+      .setName('Sync Plugin Suite & Themes')
+      .setDesc('Synchronize community plugins, configurations, themes, and CSS snippets across all devices. Includes automated mobile safety filtering to prevent iOS/Android app crashes.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.syncPluginSuite).onChange(async (value) => {
+          this.plugin.settings.syncPluginSuite = value;
+          await this.plugin.saveSettings();
+        })
+      );
 
     new Setting(containerEl)
       .setName('Sync plugin list')

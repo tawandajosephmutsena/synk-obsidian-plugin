@@ -23,9 +23,48 @@ function matchesPrefix(path, prefix) {
   return path === prefix || path.startsWith(`${prefix}/`);
 }
 
-function isObsidianPathAllowed(path, settings) {
+const desktopOnlyPluginIds = [
+  'obsidian-git',
+  'terminal',
+  'obsidian-terminal',
+  'shell-commands',
+  'execute-code',
+  'local-rest-api',
+  'system-dark-mode',
+];
+
+function getPluginIdFromPath(path) {
+  const match = String(path).match(/^\.obsidian\/plugins\/([^\/]+)/);
+  return match ? match[1].toLowerCase() : null;
+}
+
+function isPluginSafeForPlatform(pluginId, isMobile = false) {
+  if (!isMobile || !pluginId) {
+    return true;
+  }
+  return !desktopOnlyPluginIds.includes(pluginId.toLowerCase());
+}
+
+function isObsidianPathAllowed(path, settings = {}) {
   if (alwaysExcludedObsidianPaths.some((prefix) => matchesPrefix(path, prefix))) {
     return false;
+  }
+
+  // Complete Vault Environment & Plugin Suite Sync
+  if (settings.syncPluginSuite === true) {
+    if (path === '.obsidian/community-plugins.json') {
+      return true;
+    }
+    if (matchesPrefix(path, '.obsidian/snippets')) {
+      return true;
+    }
+    if (matchesPrefix(path, '.obsidian/themes')) {
+      return true;
+    }
+    if (matchesPrefix(path, '.obsidian/plugins')) {
+      const pluginId = getPluginIdFromPath(path);
+      return isPluginSafeForPlatform(pluginId, settings.isMobile === true);
+    }
   }
 
   if (path === '.obsidian/community-plugins.json') {
@@ -36,7 +75,15 @@ function isObsidianPathAllowed(path, settings) {
     return settings.syncSnippets === true;
   }
 
+  if (matchesPrefix(path, '.obsidian/themes')) {
+    return settings.syncThemes === true;
+  }
+
   if (matchesPrefix(path, '.obsidian/plugins')) {
+    const pluginId = getPluginIdFromPath(path);
+    if (!isPluginSafeForPlatform(pluginId, settings.isMobile === true)) {
+      return false;
+    }
     return settings.syncPluginData === true;
   }
 
@@ -81,4 +128,4 @@ function deletionGuard(paths, baselineCount, thresholdPercent, hasOverride) {
   };
 }
 
-module.exports = { deletionGuard, shouldSyncPath };
+module.exports = { deletionGuard, shouldSyncPath, isObsidianPathAllowed, isPluginSafeForPlatform };

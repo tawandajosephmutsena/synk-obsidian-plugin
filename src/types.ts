@@ -9,6 +9,7 @@ export interface SynkkSettings {
   syncOnFileChange: boolean;
   includedPaths: string;
   excludedPaths: string;
+  syncPluginSuite: boolean;
   syncPluginList: boolean;
   syncSnippets: boolean;
   syncPluginData: boolean;
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: SynkkSettings = {
   syncOnFileChange: false,
   includedPaths: '',
   excludedPaths: '',
+  syncPluginSuite: true,
   syncPluginList: false,
   syncSnippets: false,
   syncPluginData: false,

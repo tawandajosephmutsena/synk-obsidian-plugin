@@ -1,4 +1,4 @@
-import { App, Notice } from 'obsidian';
+import { App, Notice, Platform } from 'obsidian';
 import { SynkkApiClient } from './apiClient';
 import { deletionGuard, shouldSyncPath } from './sync-policy';
 import { LocalFileState, SyncStateData, SynkkSettings } from './types';
@@ -59,7 +59,10 @@ export class SynkkSyncEngine {
   }
 
   private shouldSync(path: string): boolean {
-    return shouldSyncPath(path, this.getSettings());
+    return shouldSyncPath(path, {
+      ...this.getSettings(),
+      isMobile: Platform.isMobile,
+    });
   }
 
   private selectedTrackedPaths(): string[] {
