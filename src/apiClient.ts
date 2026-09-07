@@ -341,7 +341,18 @@ export class SynkkApiClient {
 
   public async batchSync(
     vaultSlug: string,
-    items: Array<{ action?: 'upload' | 'delete'; path: string; content_base64?: string; base_version?: number }>
+    items: Array<{
+      action?: 'upload' | 'delete';
+      path: string;
+      content_base64?: string;
+      base_version?: number;
+      is_encrypted?: boolean;
+      encryption_iv?: string;
+      encryption_tag?: string;
+      is_ghost?: boolean;
+      original_size?: number;
+      mime_type?: string;
+    }>
   ): Promise<{ status: string; latest_version: number; summary: any; items: any[] }> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/batch-sync`;
     const res = await this.request({

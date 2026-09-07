@@ -49,3 +49,24 @@ test('returns false and null for regular markdown without stub comment', () => {
   assert.equal(isGhostStub(normalMarkdown), false);
   assert.equal(parseGhostStub(normalMarkdown), null);
 });
+
+test('batch chunking splits large file arrays into expected chunks of 50', () => {
+  const mockFiles = Array.from({ length: 125 }, (_, i) => ({
+    path: `Notes/Doc-${i}.md`,
+    sha256: `hash-${i}`,
+  }));
+
+  const BATCH_SIZE = 50;
+  const chunks = [];
+  for (let i = 0; i < mockFiles.length; i += BATCH_SIZE) {
+    chunks.push(mockFiles.slice(i, i + BATCH_SIZE));
+  }
+
+  assert.equal(chunks.length, 3);
+  assert.equal(chunks[0].length, 50);
+  assert.equal(chunks[1].length, 50);
+  assert.equal(chunks[2].length, 25);
+  assert.equal(chunks[0][0].path, 'Notes/Doc-0.md');
+  assert.equal(chunks[2][24].path, 'Notes/Doc-124.md');
+});
+

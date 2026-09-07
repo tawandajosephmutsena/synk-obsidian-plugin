@@ -1,6 +1,7 @@
 import { Notice, Plugin, TFile } from 'obsidian';
 import { SynkkApiClient } from './apiClient';
 import { BackgroundSyncRelay } from './backgroundRelay';
+import { createCollabExtension } from './collabExtension';
 import { CollabRelayClient } from './collabRelay';
 import { ConflictResolverModal } from './conflictResolver';
 import { GhostFileManager } from './ghostFiles';
@@ -35,6 +36,9 @@ export default class SynkkPlugin extends Plugin {
     );
 
     this.collabRelay = new CollabRelayClient(this);
+
+    // Register CodeMirror 6 live collaboration presence & caret extension
+    this.registerEditorExtension(createCollabExtension(this));
 
     // Initialize Native Mobile Background Relay
     this.backgroundRelay = new BackgroundSyncRelay(
@@ -110,6 +114,38 @@ export default class SynkkPlugin extends Plugin {
       },
     });
 
+    // Command: Dehydrate Active File
+    this.addCommand({
+      id: 'synkk-dehydrate-active-file',
+      name: 'Ghost Files: Dehydrate active file to ghost stub',
+      checkCallback: (checking: boolean) => {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (activeFile) {
+          if (!checking) {
+            GhostFileManager.dehydrateFile(this.app, this.apiClient, this.settings.selectedVaultSlug, activeFile.path);
+          }
+          return true;
+        }
+        return false;
+      },
+    });
+
+    // Realtime collaboration presence relay on note switch
+    this.registerEvent(
+      this.app.workspace.on('file-open', async (file) => {
+        const vaultSlug = this.settings.selectedVaultSlug;
+        if (!vaultSlug || !this.collabRelay) return;
+
+        if (this.collabRelay.currentPath && this.collabRelay.currentPath !== file?.path) {
+          await this.collabRelay.leave(vaultSlug, this.collabRelay.currentPath);
+        }
+
+        if (file && file.extension === 'md') {
+          await this.collabRelay.join(vaultSlug, file.path);
+        }
+      })
+    );
+
     // Command: Check Transport Status
     this.addCommand({
       id: 'synkk-check-transport-status',
@@ -181,6 +217,9 @@ export default class SynkkPlugin extends Plugin {
     }
     if (this.backgroundRelay) {
       this.backgroundRelay.stop();
+    }
+    if (this.collabRelay?.currentPath && this.settings.selectedVaultSlug) {
+      this.collabRelay.leave(this.settings.selectedVaultSlug, this.collabRelay.currentPath);
     }
   }
 

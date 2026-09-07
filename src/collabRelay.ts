@@ -17,10 +17,36 @@ export class CollabRelayClient {
   currentClock = 0;
   activePeers: CollabPeer[] = [];
   heartbeatTimer: number | null = null;
+  localCursor: { line: number; col: number } | null = null;
+  private listeners: Array<(peers: CollabPeer[]) => void> = [];
 
   constructor(plugin: SynkkPlugin) {
     this.plugin = plugin;
     this.peerId = `obsidian_${Math.random().toString(36).substring(2, 10)}`;
+  }
+
+  onPeersChange(fn: (peers: CollabPeer[]) => void): () => void {
+    this.listeners.push(fn);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== fn);
+    };
+  }
+
+  private notifyListeners(): void {
+    for (const listener of this.listeners) {
+      try {
+        listener(this.activePeers);
+      } catch (e) {
+        console.error('Error in collab listener:', e);
+      }
+    }
+  }
+
+  updateLocalCursor(line: number, col: number): void {
+    if (this.localCursor && this.localCursor.line === line && this.localCursor.col === col) {
+      return;
+    }
+    this.localCursor = { line, col };
   }
 
   async join(vaultSlug: string, path: string): Promise<void> {
@@ -46,7 +72,8 @@ export class CollabRelayClient {
 
       if (res.status === 200 && res.json) {
         this.currentClock = res.json.clock || 0;
-        this.activePeers = res.json.peers || [];
+        this.activePeers = (res.json.peers || []).filter((p: CollabPeer) => p.peer_id !== this.peerId);
+        this.notifyListeners();
         this.startHeartbeat(vaultSlug, path);
       }
     } catch {
@@ -60,7 +87,7 @@ export class CollabRelayClient {
       if (this.currentPath === path) {
         await this.sync(vaultSlug, path, []);
       }
-    }, 5000);
+    }, 4000);
   }
 
   stopHeartbeat() {
@@ -88,6 +115,7 @@ export class CollabRelayClient {
           path,
           peer_id: this.peerId,
           deltas,
+          cursor: this.localCursor,
           since_clock: this.currentClock,
         }),
       });
@@ -95,6 +123,7 @@ export class CollabRelayClient {
       if (res.status === 200 && res.json) {
         this.currentClock = res.json.clock || this.currentClock;
         this.activePeers = (res.json.peers || []).filter((p: CollabPeer) => p.peer_id !== this.peerId);
+        this.notifyListeners();
       }
     } catch {
       // Graceful silence
@@ -105,6 +134,7 @@ export class CollabRelayClient {
     this.stopHeartbeat();
     this.currentPath = null;
     this.activePeers = [];
+    this.notifyListeners();
 
     if (!this.plugin.settings.serverUrl || !this.plugin.settings.deviceToken) return;
 

@@ -60,3 +60,32 @@
   padding: 12px;
   margin-bottom: 16px;
 }
+
+/* CodeMirror 6 Collaborative Carets */
+.synkk-collab-cursor {
+  position: relative;
+  display: inline-block;
+  width: 0;
+  height: 1.25em;
+  vertical-align: text-bottom;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.synkk-collab-label {
+  position: absolute;
+  top: -1.4em;
+  left: -2px;
+  font-size: 10px;
+  font-family: var(--font-interface, sans-serif);
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  color: #ffffff;
+  white-space: nowrap;
+  pointer-events: none;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  user-select: none;
+}
+

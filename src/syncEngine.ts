@@ -1,4 +1,4 @@
-import { App, Notice, Platform } from 'obsidian';
+import { App, Notice, Platform, TFile } from 'obsidian';
 import { SynkkApiClient } from './apiClient';
 import { E2eeVaultEngine } from './e2ee';
 import { GhostFileManager } from './ghostFiles';
@@ -354,9 +354,16 @@ export class SynkkSyncEngine {
         }
       }
 
-      // STEP 4: Scan local files and push modifications
+      // STEP 4: Scan local files and batch push modifications
       this.onStatusChange?.('Scanning local changes...', true);
       const allFiles = this.app.vault.getFiles();
+      const filesToPush: Array<{
+        file: TFile;
+        path: string;
+        buffer: ArrayBuffer;
+        sha256: string;
+        knownVersion: number;
+      }> = [];
 
       for (const file of allFiles) {
         const path = file.path;
@@ -369,50 +376,97 @@ export class SynkkSyncEngine {
 
           // If file is new or modified locally
           if (!known || known.sha256 !== sha256) {
-            this.onStatusChange?.(`Pushing ${path}...`, true);
-            let uploadBuffer: ArrayBuffer = buffer;
-            let uploadExtra: any = undefined;
+            filesToPush.push({
+              file,
+              path,
+              buffer,
+              sha256,
+              knownVersion: known ? known.version : 0,
+            });
+          }
+        } catch (err: any) {
+          console.error(`Error inspecting ${path}:`, err);
+          errors++;
+        }
+      }
 
-            // Zero-Knowledge E2EE Encryption
-            if (settings.e2eeEnabled && this.e2eeEngine.isReady()) {
-              const enc = await this.e2eeEngine.encrypt(buffer);
-              uploadBuffer = enc.ciphertext.buffer;
-              uploadExtra = {
-                is_encrypted: true,
-                encryption_iv: enc.ivHex,
-                encryption_tag: enc.tagHex,
-              };
+      // Process modified files in batches of 50
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < filesToPush.length; i += BATCH_SIZE) {
+        const chunk = filesToPush.slice(i, i + BATCH_SIZE);
+        const batchProgress = filesToPush.length > BATCH_SIZE
+          ? ` (${i + 1}-${Math.min(i + chunk.length, filesToPush.length)} of ${filesToPush.length})`
+          : '';
+        this.onStatusChange?.(`Pushing changes${batchProgress}...`, true);
+
+        const batchPayload = [];
+        for (const item of chunk) {
+          let uploadBuffer: ArrayBuffer = item.buffer;
+          let uploadExtra: any = {};
+
+          // Zero-Knowledge E2EE Encryption
+          if (settings.e2eeEnabled && this.e2eeEngine.isReady()) {
+            const enc = await this.e2eeEngine.encrypt(item.buffer);
+            uploadBuffer = enc.ciphertext.buffer;
+            uploadExtra = {
+              is_encrypted: true,
+              encryption_iv: enc.ivHex,
+              encryption_tag: enc.tagHex,
+            };
+          }
+
+          const base64 = this.arrayBufferToBase64(uploadBuffer);
+          batchPayload.push({
+            action: 'upload' as const,
+            path: item.path,
+            content_base64: base64,
+            base_version: item.knownVersion,
+            ...uploadExtra,
+          });
+        }
+
+        try {
+          const res = await this.api.batchSync(vaultSlug, batchPayload);
+          const resultMap = new Map<string, any>();
+          if (Array.isArray(res.items)) {
+            for (const r of res.items) {
+              resultMap.set(r.path, r);
+            }
+          }
+
+          for (const item of chunk) {
+            const r = resultMap.get(item.path);
+            if (!r || r.status === 'error' || r.status === 'forbidden') {
+              errors++;
+              console.error(`Error uploading ${item.path}:`, r?.message || 'Unknown batch error');
+              new Notice(`Synkk: ${r?.message || 'Upload failed for ' + item.path}`);
+              continue;
             }
 
-            const base64 = this.arrayBufferToBase64(uploadBuffer);
-            const baseVersion = known ? known.version : 0;
-
-            const res = await this.api.uploadFile(vaultSlug, path, base64, baseVersion, uploadExtra);
-
-            if (res.has_secrets && res.detected_secrets && res.detected_secrets.length > 0) {
-              const detected = res.detected_secrets.join(', ');
-              new Notice(`⚠️ Synkk DLP Guard: Potential secret pattern detected in "${path}" (${detected}). Team audit logged.`, 9000);
+            if (r.has_secrets && r.detected_secrets && r.detected_secrets.length > 0) {
+              const detected = r.detected_secrets.join(', ');
+              new Notice(`⚠️ Synkk DLP Guard: Potential secret pattern detected in "${item.path}" (${detected}). Team audit logged.`, 9000);
             }
 
-            if (res.status === 'conflict') {
+            if (r.status === 'conflict') {
               conflicts++;
-              new Notice(`Synkk: Conflict on "${path}". Saved version as "${res.path}".`, 6000);
-            } else if (res.status === 'identical') {
+              new Notice(`Synkk: Conflict on "${item.path}". Saved version as "${r.path}".`, 6000);
+            } else if (r.status === 'identical') {
               // Up to date
             } else {
               pushed++;
             }
 
-            this.stateData.files[path] = {
-              sha256,
-              mtime: file.stat.mtime,
-              version: res.version,
+            this.stateData.files[item.path] = {
+              sha256: item.sha256,
+              mtime: item.file.stat.mtime,
+              version: r.version || item.knownVersion,
             };
           }
         } catch (err: any) {
-          console.error(`Error uploading ${path}:`, err);
-          errors++;
-          new Notice(`Synkk: ${err.message || 'Upload failed'}`);
+          console.error(`Error in batch upload:`, err);
+          errors += chunk.length;
+          new Notice(`Synkk: Batch upload failed: ${err.message || 'Unknown error'}`);
         }
       }
 
