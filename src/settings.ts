@@ -24,16 +24,16 @@ export class SynkkSettingTab extends PluginSettingTab {
     // Instant Quick Connect (QR payload or connect string)
     new Setting(containerEl)
       .setName('⚡ Instant Quick Connect')
-      .setDesc('Paste your mobile QR scan code or pairing payload to auto-configure Server URL, Device Token, and Vault in 1 second.')
+      .setDesc('Paste your mobile QR scan code, 2-second pairing session JSON, or device token to auto-configure in 1 second.')
       .addText((text) => {
         text
-          .setPlaceholder('Paste {"v":1,"server":"...","token":"..."} or synkk:// link')
+          .setPlaceholder('Paste QR session JSON {"v":2,"type":"synkk-pairing-session",...} or token')
           .onChange(async (val) => {
             const trimmed = val.trim();
             if (!trimmed) return;
 
             try {
-              let parsed: { server?: string; token?: string; vault?: string; name?: string } | null = null;
+              let parsed: any = null;
 
               if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
                 parsed = JSON.parse(trimmed);
@@ -46,6 +46,27 @@ export class SynkkSettingTab extends PluginSettingTab {
                 };
               } else if (trimmed.startsWith('synkk_')) {
                 parsed = { token: trimmed };
+              }
+
+              if (parsed?.type === 'synkk-pairing-session' && parsed.session && parsed.server) {
+                new Notice('⚡ Exchanging 2-second pairing session with Synkk...');
+                try {
+                  const { SynkkApiClient } = await import('./apiClient');
+                  const exRes = await SynkkApiClient.exchangePairing(parsed.server, parsed.session, 'Obsidian Client', 'ios');
+                  this.plugin.settings.serverUrl = exRes.server_url;
+                  this.plugin.settings.deviceToken = exRes.plain_token;
+                  if (exRes.vault_slug) {
+                    this.plugin.settings.selectedVaultSlug = exRes.vault_slug;
+                  }
+                  await this.plugin.saveSettings();
+                  this.plugin.apiClient.updateConfig(exRes.server_url, exRes.plain_token);
+                  new Notice(`⚡ Synkk paired instantly! Linked to team ${exRes.team_slug}.`);
+                  this.display();
+                  return;
+                } catch (e: any) {
+                  new Notice(`Pairing session error: ${e.message}`);
+                  return;
+                }
               }
 
               if (parsed && (parsed.server || parsed.token || parsed.vault)) {
@@ -256,6 +277,106 @@ export class SynkkSettingTab extends PluginSettingTab {
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.safetyOverrideForNextSync).onChange(async (value) => {
           this.plugin.settings.safetyOverrideForNextSync = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    containerEl.createEl('h3', { text: '🔒 Zero-Knowledge End-to-End Encryption (E2EE)' });
+
+    new Setting(containerEl)
+      .setName('Enable Zero-Knowledge E2EE')
+      .setDesc('Encrypt all note contents and attachment files locally with WebCrypto AES-256-GCM before uploading.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.e2eeEnabled).onChange(async (val) => {
+          this.plugin.settings.e2eeEnabled = val;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('Vault Passphrase')
+      .setDesc('Shared passphrase used to derive the 256-bit encryption key. Must be identical across all your devices.')
+      .addText((text) => {
+        text.inputEl.type = 'password';
+        text
+          .setPlaceholder('Enter secure vault passphrase')
+          .setValue(this.plugin.settings.e2eePassphrase)
+          .onChange(async (val) => {
+            this.plugin.settings.e2eePassphrase = val;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Initialize E2EE on Vault')
+      .setDesc('Publish client salt and test verification cipher to lock this vault with Zero-Knowledge E2EE.')
+      .addButton((btn) =>
+        btn.setButtonText('Lock Vault with E2EE').onClick(async () => {
+          if (!this.plugin.settings.e2eePassphrase) {
+            new Notice('Please enter a vault passphrase first.');
+            return;
+          }
+          if (!this.plugin.settings.selectedVaultSlug) {
+            new Notice('Please select a target vault first.');
+            return;
+          }
+
+          try {
+            const { E2eeVaultEngine } = await import('./e2ee');
+            const salt = E2eeVaultEngine.generateSalt();
+            const engine = new E2eeVaultEngine();
+            await engine.initialize(this.plugin.settings.e2eePassphrase, salt);
+            const testCipher = await engine.createVerificationCipher();
+
+            await this.plugin.apiClient.enableE2ee(this.plugin.settings.selectedVaultSlug, salt, testCipher);
+            this.plugin.settings.e2eeEnabled = true;
+            this.plugin.settings.e2eeSalt = salt;
+            await this.plugin.saveSettings();
+
+            new Notice('🔒 Zero-Knowledge E2EE successfully enabled on vault!');
+            this.display();
+          } catch (e: any) {
+            new Notice(`E2EE initialization failed: ${e.message}`);
+          }
+        })
+      );
+
+    containerEl.createEl('h3', { text: '👻 Ghost Files (Selective Sync)' });
+
+    new Setting(containerEl)
+      .setName('Enable On-Demand Ghost Files')
+      .setDesc('Replace heavy attachments on mobile with lightweight ghost stubs and stream full binaries on demand.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.ghostFilesEnabled).onChange(async (val) => {
+          this.plugin.settings.ghostFilesEnabled = val;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('Ghost Attachment Threshold (MB)')
+      .setDesc('Attachments larger than this size will be stubbed as ghost files on mobile.')
+      .addDropdown((dropdown) => {
+        dropdown.addOption('2', '2 MB');
+        dropdown.addOption('5', '5 MB (Recommended)');
+        dropdown.addOption('10', '10 MB');
+        dropdown.addOption('25', '25 MB');
+        dropdown.addOption('50', '50 MB');
+        dropdown.setValue(String(this.plugin.settings.ghostThresholdMb));
+        dropdown.onChange(async (val) => {
+          this.plugin.settings.ghostThresholdMb = parseInt(val, 10);
+          await this.plugin.saveSettings();
+        });
+      });
+
+    containerEl.createEl('h3', { text: '⚡ Mobile Background Transport Relays' });
+
+    new Setting(containerEl)
+      .setName('Adaptive Background Relays')
+      .setDesc('Listen for remote revision pulses and sync immediately when app resumes from background.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.mobileBackgroundRelay).onChange(async (val) => {
+          this.plugin.settings.mobileBackgroundRelay = val;
           await this.plugin.saveSettings();
         })
       );

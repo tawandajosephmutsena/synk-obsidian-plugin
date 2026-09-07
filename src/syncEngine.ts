@@ -1,5 +1,7 @@
 import { App, Notice, Platform } from 'obsidian';
 import { SynkkApiClient } from './apiClient';
+import { E2eeVaultEngine } from './e2ee';
+import { GhostFileManager } from './ghostFiles';
 import { deletionGuard, shouldSyncPath } from './sync-policy';
 import { LocalFileState, SyncStateData, SynkkSettings } from './types';
 
@@ -17,6 +19,7 @@ export class SynkkSyncEngine {
   private saveSettings: (settings: Partial<SynkkSettings>) => Promise<void>;
   private isSyncing: boolean = false;
   private onStatusChange?: (status: string, isSyncing: boolean) => void;
+  public e2eeEngine: E2eeVaultEngine = new E2eeVaultEngine();
 
   private stateData: SyncStateData = {
     lastSyncVersion: 0,
@@ -171,6 +174,18 @@ export class SynkkSyncEngine {
       // STEP 1: Fetch remote manifest
       this.onStatusChange?.('Checking remote changes...', true);
       const manifest = await this.api.getManifest(vaultSlug, this.stateData.lastSyncVersion);
+
+      // Initialize Zero-Knowledge E2EE if active
+      if (manifest.vault?.is_e2ee && manifest.vault?.e2ee_salt) {
+        if (!settings.e2eePassphrase) {
+          new Notice('Synkk: Vault has Zero-Knowledge E2EE enabled. Please enter your vault passphrase in Settings.', 8000);
+        } else {
+          await this.e2eeEngine.initialize(settings.e2eePassphrase, manifest.vault.e2ee_salt);
+        }
+      } else if (settings.e2eeEnabled && settings.e2eePassphrase && settings.e2eeSalt) {
+        await this.e2eeEngine.initialize(settings.e2eePassphrase, settings.e2eeSalt);
+      }
+
       const baselineCount = this.selectedTrackedPaths().length;
       const remoteDeletionPaths: string[] = [];
 
@@ -278,7 +293,33 @@ export class SynkkSyncEngine {
             }
 
             this.onStatusChange?.(`Pulling ${remoteFile.path}...`, true);
-            const buffer = await this.api.downloadFile(vaultSlug, remoteFile.path);
+            const isAttachment = !remoteFile.path.endsWith('.md');
+            const shouldGhost = settings.ghostFilesEnabled && Platform.isMobile && isAttachment && (remoteFile.size > settings.ghostThresholdMb * 1024 * 1024);
+            const asGhost = shouldGhost || Boolean(remoteFile.is_ghost);
+
+            let buffer = await this.api.downloadFile(vaultSlug, remoteFile.path, asGhost);
+
+            // Zero-Knowledge E2EE Decryption
+            if (remoteFile.is_encrypted && !asGhost) {
+              if (!this.e2eeEngine.isReady()) {
+                new Notice(`Synkk: "${remoteFile.path}" is encrypted with Zero-Knowledge E2EE, but key is not initialized.`);
+                errors++;
+                continue;
+              }
+              try {
+                const decryptedBytes = await this.e2eeEngine.decrypt(
+                  buffer,
+                  remoteFile.encryption_iv!,
+                  remoteFile.encryption_tag
+                );
+                buffer = decryptedBytes.buffer;
+              } catch (decErr: any) {
+                console.error(`E2EE decryption error on ${remoteFile.path}:`, decErr);
+                new Notice(`Synkk: Could not decrypt "${remoteFile.path}". Check passphrase in Settings.`);
+                errors++;
+                continue;
+              }
+            }
 
             if (exists) {
               await this.snapshotLocalFile(remoteFile.path);
@@ -329,10 +370,24 @@ export class SynkkSyncEngine {
           // If file is new or modified locally
           if (!known || known.sha256 !== sha256) {
             this.onStatusChange?.(`Pushing ${path}...`, true);
-            const base64 = this.arrayBufferToBase64(buffer);
+            let uploadBuffer: ArrayBuffer = buffer;
+            let uploadExtra: any = undefined;
+
+            // Zero-Knowledge E2EE Encryption
+            if (settings.e2eeEnabled && this.e2eeEngine.isReady()) {
+              const enc = await this.e2eeEngine.encrypt(buffer);
+              uploadBuffer = enc.ciphertext.buffer;
+              uploadExtra = {
+                is_encrypted: true,
+                encryption_iv: enc.ivHex,
+                encryption_tag: enc.tagHex,
+              };
+            }
+
+            const base64 = this.arrayBufferToBase64(uploadBuffer);
             const baseVersion = known ? known.version : 0;
 
-            const res = await this.api.uploadFile(vaultSlug, path, base64, baseVersion);
+            const res = await this.api.uploadFile(vaultSlug, path, base64, baseVersion, uploadExtra);
 
             if (res.has_secrets && res.detected_secrets && res.detected_secrets.length > 0) {
               const detected = res.detected_secrets.join(', ');

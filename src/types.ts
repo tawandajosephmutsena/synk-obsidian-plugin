@@ -18,6 +18,12 @@ export interface SynkkSettings {
   lastSyncTime: number;
   lastSyncVersion: number;
   userRootPermission: string;
+  e2eeEnabled: boolean;
+  e2eePassphrase: string;
+  e2eeSalt: string;
+  ghostFilesEnabled: boolean;
+  ghostThresholdMb: number;
+  mobileBackgroundRelay: boolean;
 }
 
 export const DEFAULT_SETTINGS: SynkkSettings = {
@@ -40,6 +46,12 @@ export const DEFAULT_SETTINGS: SynkkSettings = {
   lastSyncTime: 0,
   lastSyncVersion: 0,
   userRootPermission: 'read_write',
+  e2eeEnabled: false,
+  e2eePassphrase: '',
+  e2eeSalt: '',
+  ghostFilesEnabled: true,
+  ghostThresholdMb: 5,
+  mobileBackgroundRelay: true,
 };
 
 export interface RemoteVault {
@@ -53,6 +65,8 @@ export interface RemoteVault {
   total_bytes: number;
   latest_version: number;
   updated_at: string;
+  is_e2ee?: boolean;
+  e2ee_salt?: string | null;
 }
 
 export interface RemoteFileManifestItem {
@@ -62,6 +76,12 @@ export interface RemoteFileManifestItem {
   version: number;
   permission: 'read_write' | 'read_only' | 'hidden';
   updated_at: string;
+  is_ghost?: boolean;
+  original_size?: number;
+  mime_type?: string;
+  is_encrypted?: boolean;
+  encryption_iv?: string;
+  encryption_tag?: string;
 }
 
 export interface RemoteDeletedItem {
@@ -76,6 +96,8 @@ export interface ManifestResponse {
     name: string;
     slug: string;
     latest_version: number;
+    is_e2ee?: boolean;
+    e2ee_salt?: string | null;
   };
   files: RemoteFileManifestItem[];
   deleted: RemoteDeletedItem[];

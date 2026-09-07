@@ -110,8 +110,9 @@ export class SynkkApiClient {
     return res.json as ManifestResponse;
   }
 
-  public async downloadFile(vaultSlug: string, path: string): Promise<ArrayBuffer> {
-    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/download?path=${encodeURIComponent(path)}`;
+  public async downloadFile(vaultSlug: string, path: string, asGhost: boolean = false): Promise<ArrayBuffer> {
+    const ghostParam = asGhost ? '&ghost=1' : '';
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/download?path=${encodeURIComponent(path)}${ghostParam}`;
     const res = await this.request({
       url,
       method: 'GET',
@@ -128,13 +129,120 @@ export class SynkkApiClient {
     return res.arrayBuffer;
   }
 
+  public async downloadFileWithHeaders(
+    vaultSlug: string,
+    path: string,
+    asGhost: boolean = false
+  ): Promise<{ data: ArrayBuffer; headers: Record<string, string> }> {
+    const ghostParam = asGhost ? '&ghost=1' : '';
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/download?path=${encodeURIComponent(path)}${ghostParam}`;
+    const res = await this.request({
+      url,
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'X-Client-Platform': this.getPlatform(),
+      },
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`Failed to download ${path}: HTTP ${res.status}`);
+    }
+
+    return {
+      data: res.arrayBuffer,
+      headers: res.headers || {},
+    };
+  }
+
   public async uploadFile(
     vaultSlug: string,
     path: string,
     contentBase64: string,
-    baseVersion: number
+    baseVersion: number,
+    extraParams?: {
+      is_encrypted?: boolean;
+      encryption_iv?: string;
+      encryption_tag?: string;
+      is_ghost?: boolean;
+      original_size?: number;
+    }
   ): Promise<UploadResponse> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/upload`;
+    const payload: any = {
+      path,
+      content_base64: contentBase64,
+      base_version: baseVersion,
+    };
+
+    if (extraParams?.is_encrypted) {
+      payload.is_encrypted = true;
+      payload.encryption_iv = extraParams.encryption_iv;
+      payload.encryption_tag = extraParams.encryption_tag;
+    }
+
+    if (extraParams?.is_ghost) {
+      payload.is_ghost = true;
+      payload.original_size = extraParams.original_size;
+    }
+
+    const res = await this.request({
+      url,
+      method: 'POST',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.status !== 200 && res.status !== 201) {
+      throw new Error(`Upload failed for ${path}: HTTP ${res.status} - ${res.text}`);
+    }
+
+    return res.json as UploadResponse;
+  }
+
+  public async hydrateFile(vaultSlug: string, path: string): Promise<any> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/files/hydrate`;
+    const res = await this.request({
+      url,
+      method: 'POST',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path }),
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`Failed to hydrate ${path}: HTTP ${res.status}`);
+    }
+
+    return res.json;
+  }
+
+  public async dehydrateFile(vaultSlug: string, path: string): Promise<any> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/files/dehydrate`;
+    const res = await this.request({
+      url,
+      method: 'POST',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path }),
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`Failed to dehydrate ${path}: HTTP ${res.status}`);
+    }
+
+    return res.json;
+  }
+
+  public async enableE2ee(vaultSlug: string, salt: string, testCipher: string): Promise<any> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/e2ee/enable`;
     const res = await this.request({
       url,
       method: 'POST',
@@ -143,17 +251,75 @@ export class SynkkApiClient {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        path,
-        content_base64: contentBase64,
-        base_version: baseVersion,
+        salt,
+        test_cipher: testCipher,
       }),
     });
 
-    if (res.status !== 200 && res.status !== 201) {
-      throw new Error(`Upload failed for ${path}: HTTP ${res.status} - ${res.text}`);
+    if (res.status !== 200) {
+      throw new Error(`Failed to enable E2EE: HTTP ${res.status}`);
     }
 
-    return res.json as UploadResponse;
+    return res.json;
+  }
+
+  public async getE2eeStatus(vaultSlug: string): Promise<{ is_e2ee: boolean; salt: string | null; has_test_cipher: boolean }> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/e2ee/status`;
+    const res = await this.request({
+      url,
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`Failed to get E2EE status: HTTP ${res.status}`);
+    }
+
+    return res.json;
+  }
+
+  public async getTransportStatus(vaultSlug: string): Promise<any> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/transport/status`;
+    const res = await this.request({
+      url,
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`Failed to get transport status: HTTP ${res.status}`);
+    }
+
+    return res.json;
+  }
+
+  public static async exchangePairing(
+    serverUrl: string,
+    sessionId: string,
+    deviceName: string,
+    platform: string = 'ios'
+  ): Promise<{ status: string; plain_token: string; server_url: string; team_slug: string; vault_slug?: string }> {
+    const url = `${serverUrl.replace(/\/+$/, '')}/pairing/exchange`;
+    const res = await requestUrl({
+      url,
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        session: sessionId,
+        device_name: deviceName,
+        platform,
+      }),
+      throw: false,
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`Pairing exchange failed (HTTP ${res.status}): ${res.text}`);
+    }
+
+    return res.json;
   }
 
   public async deleteFile(vaultSlug: string, path: string): Promise<void> {

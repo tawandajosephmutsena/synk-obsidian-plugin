@@ -1,5 +1,9 @@
-import { Notice, Plugin } from 'obsidian';
+import { Notice, Plugin, TFile } from 'obsidian';
 import { SynkkApiClient } from './apiClient';
+import { BackgroundSyncRelay } from './backgroundRelay';
+import { CollabRelayClient } from './collabRelay';
+import { ConflictResolverModal } from './conflictResolver';
+import { GhostFileManager } from './ghostFiles';
 import { SynkkSettingTab } from './settings';
 import { SynkkSyncEngine } from './syncEngine';
 import { DEFAULT_SETTINGS, SynkkSettings } from './types';
@@ -8,6 +12,8 @@ export default class SynkkPlugin extends Plugin {
   settings: SynkkSettings;
   apiClient: SynkkApiClient;
   syncEngine: SynkkSyncEngine;
+  collabRelay: CollabRelayClient;
+  backgroundRelay: BackgroundSyncRelay;
   private statusBarEl: HTMLElement;
   private syncIntervalId: number | null = null;
 
@@ -27,6 +33,21 @@ export default class SynkkPlugin extends Plugin {
       (status, isSyncing) => this.updateStatusBar(status, isSyncing)
     );
 
+    this.collabRelay = new CollabRelayClient(this);
+
+    // Initialize Native Mobile Background Relay
+    this.backgroundRelay = new BackgroundSyncRelay(
+      this.app,
+      this.apiClient,
+      () => this.settings.selectedVaultSlug,
+      async () => {
+        await this.syncEngine.sync();
+      }
+    );
+    if (this.settings.mobileBackgroundRelay) {
+      this.backgroundRelay.start(60);
+    }
+
     // Status bar indicator
     this.statusBarEl = this.addStatusBarItem();
     this.statusBarEl.addClass('synkk-status-bar');
@@ -40,12 +61,60 @@ export default class SynkkPlugin extends Plugin {
       await this.syncEngine.sync();
     });
 
+    // Left Ribbon Icon (Conflict Sandbox)
+    this.addRibbonIcon('split', 'Synkk: Visual Conflict Sandbox', () => {
+      new ConflictResolverModal(this.app, this).open();
+    });
+
     // Command: Sync Now
     this.addCommand({
       id: 'synkk-sync-now',
       name: 'Synchronize Now',
       callback: async () => {
         await this.syncEngine.sync();
+      },
+    });
+
+    // Command: Open Conflict Sandbox
+    this.addCommand({
+      id: 'synkk-open-conflict-sandbox',
+      name: 'Visual Conflict Sandbox: Reconcile Notes',
+      callback: () => {
+        new ConflictResolverModal(this.app, this).open();
+      },
+    });
+
+    // Command: Hydrate Active Ghost File
+    this.addCommand({
+      id: 'synkk-hydrate-active-file',
+      name: 'Ghost Files: Hydrate active file on-demand',
+      checkCallback: (checking: boolean) => {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (activeFile) {
+          if (!checking) {
+            GhostFileManager.hydrateFile(this.app, this.apiClient, this.settings.selectedVaultSlug, activeFile);
+          }
+          return true;
+        }
+        return false;
+      },
+    });
+
+    // Command: Check Transport Status
+    this.addCommand({
+      id: 'synkk-check-transport-status',
+      name: 'Transport Relay: Check server transport status',
+      callback: async () => {
+        if (!this.settings.selectedVaultSlug) {
+          new Notice('Synkk: Please select a vault in settings first.');
+          return;
+        }
+        try {
+          const status = await this.apiClient.getTransportStatus(this.settings.selectedVaultSlug);
+          new Notice(`Synkk Transport: Healthy (v${status.latest_version}, ${status.active_collaborators} online, E2EE: ${status.is_e2ee ? 'Active' : 'Off'})`, 6000);
+        } catch (e: any) {
+          new Notice(`Synkk Transport Error: ${e.message}`);
+        }
       },
     });
 
@@ -67,6 +136,9 @@ export default class SynkkPlugin extends Plugin {
     if (this.syncIntervalId !== null) {
       window.clearInterval(this.syncIntervalId);
       this.syncIntervalId = null;
+    }
+    if (this.backgroundRelay) {
+      this.backgroundRelay.stop();
     }
   }
 
