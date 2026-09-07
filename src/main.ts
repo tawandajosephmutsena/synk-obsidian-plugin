@@ -4,6 +4,7 @@ import { BackgroundSyncRelay } from './backgroundRelay';
 import { CollabRelayClient } from './collabRelay';
 import { ConflictResolverModal } from './conflictResolver';
 import { GhostFileManager } from './ghostFiles';
+import { VaultCopilotModal } from './ragModal';
 import { SynkkSettingTab } from './settings';
 import { SynkkSyncEngine } from './syncEngine';
 import { DEFAULT_SETTINGS, SynkkSettings } from './types';
@@ -66,6 +67,15 @@ export default class SynkkPlugin extends Plugin {
       new ConflictResolverModal(this.app, this).open();
     });
 
+    // Left Ribbon Icon (Vault Copilot)
+    this.addRibbonIcon('sparkles', 'Synkk: Ask Vault Copilot (RAG)', () => {
+      if (!this.settings.selectedVaultSlug) {
+        new Notice('Synkk: Please select a target vault in settings first.');
+        return;
+      }
+      new VaultCopilotModal(this.app, this.apiClient, this.settings.selectedVaultSlug).open();
+    });
+
     // Command: Sync Now
     this.addCommand({
       id: 'synkk-sync-now',
@@ -114,6 +124,38 @@ export default class SynkkPlugin extends Plugin {
           new Notice(`Synkk Transport: Healthy (v${status.latest_version}, ${status.active_collaborators} online, E2EE: ${status.is_e2ee ? 'Active' : 'Off'})`, 6000);
         } catch (e: any) {
           new Notice(`Synkk Transport Error: ${e.message}`);
+        }
+      },
+    });
+
+    // Command: Ask Vault Copilot (RAG)
+    this.addCommand({
+      id: 'synkk-ask-vault-copilot',
+      name: 'Vault Copilot: Ask a question (RAG)',
+      callback: () => {
+        if (!this.settings.selectedVaultSlug) {
+          new Notice('Synkk: Please select a target vault in settings first.');
+          return;
+        }
+        new VaultCopilotModal(this.app, this.apiClient, this.settings.selectedVaultSlug).open();
+      },
+    });
+
+    // Command: Re-index Vector Embeddings
+    this.addCommand({
+      id: 'synkk-reindex-vault-embeddings',
+      name: 'Vault Copilot: Re-index vector embeddings',
+      callback: async () => {
+        if (!this.settings.selectedVaultSlug) {
+          new Notice('Synkk: Please select a target vault in settings first.');
+          return;
+        }
+        new Notice('Synkk: Re-indexing vault vector embeddings...');
+        try {
+          const res = await this.apiClient.ragIndex(this.settings.selectedVaultSlug, true);
+          new Notice(`Synkk: Re-indexed ${res.files_indexed} notes (${res.chunks_count} chunks) in ${res.duration_ms}ms.`);
+        } catch (e: any) {
+          new Notice(`Synkk: Re-indexing failed: ${e.message}`);
         }
       },
     });

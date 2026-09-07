@@ -435,5 +435,40 @@ export class SynkkSettingTab extends PluginSettingTab {
             await this.plugin.syncEngine.sync();
           })
       );
+
+    containerEl.createEl('h3', { text: 'Agentic Knowledge Graph & RAG Server' });
+
+    new Setting(containerEl)
+      .setName('Enable Vault Copilot')
+      .setDesc('Query your private notes with local vector embeddings and [[wikilink]] graph traversal.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.ragEnabled).onChange(async (val) => {
+          this.plugin.settings.ragEnabled = val;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('Re-index Vault Embeddings')
+      .setDesc('Trigger remote vector re-indexing for full-vault semantic search and copilot queries.')
+      .addButton((btn) =>
+        btn.setButtonText('Re-index Vault').onClick(async () => {
+          if (!this.plugin.settings.selectedVaultSlug) {
+            new Notice('Please select a target vault first.');
+            return;
+          }
+          btn.setDisabled(true);
+          btn.setButtonText('Indexing...');
+          try {
+            const res = await this.plugin.apiClient.ragIndex(this.plugin.settings.selectedVaultSlug, true);
+            new Notice(`Re-indexed ${res.files_indexed} notes (${res.chunks_count} chunks) in ${res.duration_ms}ms.`);
+          } catch (e: any) {
+            new Notice(`Re-indexing failed: ${e.message}`);
+          } finally {
+            btn.setDisabled(false);
+            btn.setButtonText('Re-index Vault');
+          }
+        })
+      );
   }
 }

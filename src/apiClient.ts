@@ -1,5 +1,5 @@
 import { Platform, requestUrl, RequestUrlParam } from 'obsidian';
-import { ManifestResponse, RemoteVault, UploadResponse, VerifyAuthResponse } from './types';
+import { ManifestResponse, RagQueryResponse, RagSearchResult, RagStatusResponse, RemoteVault, UploadResponse, VerifyAuthResponse } from './types';
 
 export class SynkkApiClient {
   private serverUrl: string;
@@ -359,5 +359,96 @@ export class SynkkApiClient {
     }
 
     return res.json;
+  }
+
+  public async ragQuery(
+    vaultSlug: string,
+    query: string,
+    expandGraph: boolean = true,
+    maxCitations: number = 4
+  ): Promise<RagQueryResponse> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/rag/query`;
+    const res = await this.request({
+      url,
+      method: 'POST',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        expand_graph: expandGraph,
+        max_citations: maxCitations,
+      }),
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`RAG query failed: HTTP ${res.status} - ${res.text}`);
+    }
+
+    return res.json as RagQueryResponse;
+  }
+
+  public async ragSearch(
+    vaultSlug: string,
+    query: string,
+    limit: number = 5
+  ): Promise<{ status: string; query: string; count: number; results: RagSearchResult[] }> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/rag/search`;
+    const res = await this.request({
+      url,
+      method: 'POST',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        limit,
+      }),
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`RAG search failed: HTTP ${res.status} - ${res.text}`);
+    }
+
+    return res.json;
+  }
+
+  public async ragIndex(
+    vaultSlug: string,
+    force: boolean = false
+  ): Promise<{ status: string; files_indexed: number; chunks_count: number; duration_ms: number }> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/rag/index`;
+    const res = await this.request({
+      url,
+      method: 'POST',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ force }),
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`RAG index failed: HTTP ${res.status} - ${res.text}`);
+    }
+
+    return res.json;
+  }
+
+  public async ragStatus(vaultSlug: string): Promise<RagStatusResponse> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/rag/status`;
+    const res = await this.request({
+      url,
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`RAG status check failed: HTTP ${res.status} - ${res.text}`);
+    }
+
+    return res.json as RagStatusResponse;
   }
 }

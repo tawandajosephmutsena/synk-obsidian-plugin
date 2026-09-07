@@ -24,6 +24,9 @@ export interface SynkkSettings {
   ghostFilesEnabled: boolean;
   ghostThresholdMb: number;
   mobileBackgroundRelay: boolean;
+  ragEnabled: boolean;
+  ragUseLocalOllama: boolean;
+  ragOllamaUrl: string;
 }
 
 export const DEFAULT_SETTINGS: SynkkSettings = {
@@ -52,6 +55,9 @@ export const DEFAULT_SETTINGS: SynkkSettings = {
   ghostFilesEnabled: true,
   ghostThresholdMb: 5,
   mobileBackgroundRelay: true,
+  ragEnabled: true,
+  ragUseLocalOllama: false,
+  ragOllamaUrl: 'http://localhost:11434',
 };
 
 export interface RemoteVault {
@@ -146,4 +152,52 @@ export interface UploadResponse {
   has_secrets?: boolean;
   detected_secrets?: string[];
   message?: string;
+}
+
+export interface RagCitation {
+  note: string;
+  heading: string | null;
+  start_line: number;
+  similarity: number;
+  score_pct: number;
+  excerpt: string;
+}
+
+export interface RagGraphNode {
+  path: string;
+  title: string;
+  relationship: string;
+  via: string;
+  excerpt?: string | null;
+}
+
+export interface RagQueryResponse {
+  status: string;
+  query: string;
+  answer: string;
+  citations: RagCitation[];
+  graph_nodes: RagGraphNode[];
+  model: string;
+  duration_ms: number;
+}
+
+export interface RagSearchResult {
+  file_id: number;
+  path: string;
+  heading: string | null;
+  start_line: number;
+  similarity: number;
+  score_pct: number;
+  content: string;
+  wikilinks: string[];
+}
+
+export interface RagStatusResponse {
+  status: string;
+  indexed: boolean;
+  total_files: number;
+  total_chunks: number;
+  embedding_provider: string;
+  llm_provider: string;
+  last_indexed_at: string | null;
 }
