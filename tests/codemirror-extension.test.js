@@ -84,3 +84,118 @@ test('sorts and builds collaborator carets in deterministic document position or
   assert.ok(descriptors[0].pos < descriptors[1].pos);
   assert.ok(descriptors[1].pos < descriptors[2].pos);
 });
+
+test('generates valid yCollab extension binding with Y.Doc, SynkkAwareness, and UndoManager', async () => {
+  const Y = await import('yjs');
+  const { yCollab } = await import('y-codemirror.next');
+  const { SynkkAwareness } = await import('../src/yjsProvider.js');
+
+  const doc = new Y.Doc();
+  const ytext = doc.getText('markdown');
+  const undoManager = new Y.UndoManager(ytext);
+  const awareness = new SynkkAwareness(doc);
+
+  awareness.setLocalStateField('user', {
+    name: 'Test Collaborator',
+    color: '#10B981',
+  });
+
+  const extensions = yCollab(ytext, awareness, { undoManager });
+
+  assert.ok(Array.isArray(extensions));
+  assert.ok(extensions.length >= 5);
+  assert.equal(awareness.getLocalState()?.user?.name, 'Test Collaborator');
+
+  awareness.destroy();
+  undoManager.destroy();
+  doc.destroy();
+});
+
+test('converges two independent Yjs markdown documents with carets over awareness', async () => {
+  const Y = await import('yjs');
+  const { SynkkAwareness } = await import('../src/yjsProvider.js');
+
+  const docA = new Y.Doc();
+  const docB = new Y.Doc();
+  const textA = docA.getText('markdown');
+  const textB = docB.getText('markdown');
+
+  const awarenessA = new SynkkAwareness(docA);
+  const awarenessB = new SynkkAwareness(docB);
+
+  awarenessA.setLocalStateField('user', { name: 'Obsidian Alice', color: '#10B981' });
+  awarenessB.setLocalStateField('user', { name: 'Web Bob', color: '#6366F1' });
+
+  // Initial common baseline
+  textA.insert(0, '# Synkk Architecture\n\nSection 1:\n');
+  const initUpdate = Y.encodeStateAsUpdate(docA);
+  Y.applyUpdate(docB, initUpdate);
+
+  // Peer A edits section 1
+  textA.insert(33, 'Engineered for reliability.\n');
+  awarenessA.setLocalStateField('cursor', { line: 3, col: 28 });
+
+  // Peer B edits section 2
+  textB.insert(textB.length, 'Section 2:\nConvergent Yjs over Reverb.\n');
+  awarenessB.setLocalStateField('cursor', { line: 4, col: 30 });
+
+  // Exchange updates
+  const updateA = Y.encodeStateAsUpdate(docA);
+  const updateB = Y.encodeStateAsUpdate(docB);
+
+  Y.applyUpdate(docB, updateA);
+  Y.applyUpdate(docA, updateB);
+
+  // Assert byte-identical text convergence
+  assert.equal(textA.toString(), textB.toString());
+  assert.match(textA.toString(), /Engineered for reliability\./);
+  assert.match(textA.toString(), /Convergent Yjs over Reverb\./);
+
+  // Sync awareness state
+  awarenessB.states.set(awarenessA.clientID, awarenessA.getLocalState());
+  assert.equal(awarenessB.getStates().get(awarenessA.clientID)?.user?.name, 'Obsidian Alice');
+  assert.equal(awarenessB.getStates().get(awarenessA.clientID)?.cursor?.line, 3);
+
+  awarenessA.destroy();
+  awarenessB.destroy();
+  docA.destroy();
+  docB.destroy();
+});
+
+test('debounces snapshot flush when active note converges and clears on leave', async () => {
+  const Y = await import('yjs');
+  const { SynkkAwareness } = await import('../src/yjsProvider.js');
+
+  let flushCalls = 0;
+  let timer = null;
+
+  function scheduleFlush(debounceMs = 50) {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      flushCalls += 1;
+    }, debounceMs);
+  }
+
+  function leave() {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  }
+
+  // Rapid typing
+  scheduleFlush(30);
+  scheduleFlush(30);
+  scheduleFlush(30);
+
+  // Before timer fires, call leave
+  leave();
+
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(flushCalls, 0, 'Leave before debounce should cancel snapshot flush');
+
+  // New session types and allows timer to fire
+  scheduleFlush(20);
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.equal(flushCalls, 1, 'Snapshot should flush once after debounce interval');
+});

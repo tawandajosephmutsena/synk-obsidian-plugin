@@ -4,6 +4,7 @@ import { BackgroundSyncRelay } from './backgroundRelay';
 import { createCollabExtension } from './collabExtension';
 import { CollabRelayClient } from './collabRelay';
 import { ConflictResolverModal } from './conflictResolver';
+import { SynkkEchoManager } from './echoManager';
 import { GhostFileManager } from './ghostFiles';
 import { VaultCopilotModal } from './ragModal';
 import { SynkkSettingTab } from './settings';
@@ -16,6 +17,7 @@ export default class SynkkPlugin extends Plugin {
   syncEngine: SynkkSyncEngine;
   collabRelay: CollabRelayClient;
   backgroundRelay: BackgroundSyncRelay;
+  echoManager: SynkkEchoManager;
   private statusBarEl: HTMLElement;
   private syncIntervalId: number | null = null;
 
@@ -35,6 +37,16 @@ export default class SynkkPlugin extends Plugin {
       (status, isSyncing) => this.updateStatusBar(status, isSyncing)
     );
 
+    // Eagerly initialize E2EE key on startup if passphrase & salt are configured
+    if (this.settings.e2eePassphrase && this.settings.e2eeSalt) {
+      try {
+        await this.syncEngine.e2eeEngine.initialize(this.settings.e2eePassphrase, this.settings.e2eeSalt);
+      } catch (e) {
+        console.error('Synkk: Failed to initialize E2EE engine on startup:', e);
+      }
+    }
+
+    this.echoManager = new SynkkEchoManager(this);
     this.collabRelay = new CollabRelayClient(this);
 
     // Register CodeMirror 6 live collaboration presence & caret extension
@@ -52,6 +64,12 @@ export default class SynkkPlugin extends Plugin {
     if (this.settings.mobileBackgroundRelay) {
       this.backgroundRelay.start(60);
     }
+
+    // Register obsidian://synkk-pair protocol handler for genuine one-scan pairing
+    this.registerObsidianProtocolHandler('synkk-pair', async (params) => {
+      const { handlePairingProtocol } = await import('./pairing');
+      await handlePairingProtocol(this, params);
+    });
 
     // Status bar indicator
     this.statusBarEl = this.addStatusBarItem();
@@ -217,6 +235,9 @@ export default class SynkkPlugin extends Plugin {
     }
     if (this.backgroundRelay) {
       this.backgroundRelay.stop();
+    }
+    if (this.echoManager) {
+      this.echoManager.disconnect();
     }
     if (this.collabRelay?.currentPath && this.settings.selectedVaultSlug) {
       this.collabRelay.leave(this.settings.selectedVaultSlug, this.collabRelay.currentPath);

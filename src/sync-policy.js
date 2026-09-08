@@ -46,6 +46,10 @@ function isPluginSafeForPlatform(pluginId, isMobile = false) {
 }
 
 function isObsidianPathAllowed(path, settings = {}) {
+  if (path.startsWith('.obsidian/synkk-state')) {
+    return false;
+  }
+
   if (alwaysExcludedObsidianPaths.some((prefix) => matchesPrefix(path, prefix))) {
     return false;
   }
@@ -128,4 +132,55 @@ function deletionGuard(paths, baselineCount, thresholdPercent, hasOverride) {
   };
 }
 
-module.exports = { deletionGuard, shouldSyncPath, isObsidianPathAllowed, isPluginSafeForPlatform };
+/**
+ * Chunks an array of file upload payloads respecting both item count and cumulative byte size.
+ *
+ * @param {Array<any>} files
+ * @param {number} maxCount Maximum files per batch (default 50)
+ * @param {number} maxBytes Maximum cumulative bytes per batch (default 8MB)
+ * @returns {Array<Array<any>>}
+ */
+function chunkFilesForBatchUpload(files, maxCount = 50, maxBytes = 8 * 1024 * 1024) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return [];
+  }
+
+  const chunks = [];
+  let currentChunk = [];
+  let currentBytes = 0;
+
+  for (const item of files) {
+    const itemBytes = Number(
+      item?.buffer?.byteLength ??
+      item?.byteLength ??
+      item?.size ??
+      0
+    );
+
+    if (
+      currentChunk.length > 0 &&
+      (currentChunk.length >= maxCount || currentBytes + itemBytes > maxBytes)
+    ) {
+      chunks.push(currentChunk);
+      currentChunk = [];
+      currentBytes = 0;
+    }
+
+    currentChunk.push(item);
+    currentBytes += itemBytes;
+  }
+
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+  }
+
+  return chunks;
+}
+
+module.exports = {
+  deletionGuard,
+  shouldSyncPath,
+  isObsidianPathAllowed,
+  isPluginSafeForPlatform,
+  chunkFilesForBatchUpload,
+};

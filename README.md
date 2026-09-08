@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>Whole-file team vault sync for Obsidian, powered by a self-hosted Synkk server.</strong>
+  <strong>Whole-file team vault sync, real-time Yjs multiplayer, and zero-knowledge E2EE for Obsidian, powered by a self-hosted Synkk server.</strong>
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 ![Synkk plugin connected to the web dashboard](assets/github/dashboard-overview.webp)
 
-Synkk Team Vault Sync connects an Obsidian vault to a Synkk team server. It is designed for teams that need private infrastructure, member/device access control, path-specific permissions, and recoverable sync history without turning every user into a Git operator.
+Synkk Team Vault Sync connects an Obsidian vault to a Synkk team server. It is designed for teams and individuals that need private infrastructure, member/device access control, path-specific permissions, real-time multiplayer collaboration, zero-knowledge encryption, and recoverable sync history without turning every user into a Git operator.
 
 ## Product Screens
 
@@ -30,42 +30,50 @@ Synkk Team Vault Sync connects an Obsidian vault to a Synkk team server. It is d
 | --- | --- |
 | ![Synkk graph view showing linked notes and graph navigation](assets/github/graph-full.webp) | ![Synkk permissions matrix showing member path access rules](assets/github/permissions-full.webp) |
 
-## Foundation Release Capabilities
+## Core Capabilities
 
-- macOS, Windows, Linux, iOS, and Android support through Obsidian's plugin runtime.
-- Startup, scheduled, and manual whole-file sync.
-- Device tokens, team membership, and path-level `read_write`, `read_only`, and `hidden` permissions through the Synkk server.
-- SHA-256 content verification and preserved `*.sync-conflict-*.md` copies for concurrent writes.
-- Per-device include/exclude folder rules.
-- Optional `.obsidian` syncing for plugin lists, snippets, and plugin data.
-- Device-local workspace, hotkeys, caches, and Synkk state so desktop and mobile layouts do not fight each other.
-- Atomic Safety Shield with deletion thresholds, one-time override, and local snapshots before remote overwrites/deletions.
-- Web Time Machine for server-side file-version rollback.
+- **Cross-Platform Sync:** macOS, Windows, Linux, iOS, and Android support through Obsidian's plugin runtime.
+- **One-Scan QR Pairing:** Instant device setup using the `obsidian://synkk-pair` deep link protocol. Scan a QR code in the Synkk web dashboard to connect your mobile or desktop device in 2 seconds.
+- **Real-Time Multiplayer Collaboration (Yjs):** Real-time concurrent Markdown editing powered by Yjs CRDTs over Laravel Reverb, with remote awareness carets, shared undo history, and offline convergence.
+- **Zero-Knowledge Client-Side Encryption (E2EE):** High-entropy AES-256-GCM client-side encryption for E2EE vaults. Plaintext notes and Yjs updates never touch server disks unencrypted.
+- **On-Demand Ghost Files:** Dehydrate large attachments into lightweight stubs to keep mobile vaults lean, with one-click on-demand hydration.
+- **Access Control & Path Rules:** Scoped device tokens, team membership, and granular path-level `read_write`, `read_only`, and `hidden` permissions.
+- **Content Integrity:** SHA-256 content verification, atomic safety shields, deletion abort thresholds, and preserved `*.sync-conflict-*.md` backup copies.
+- **Selective Sync & Config:** Per-device include/exclude folder rules and optional `.obsidian` configuration syncing.
+- **Recoverable History:** Web Time Machine for server-side file-version rollback and recovery.
 
-## Important Limits
+## Security & Architecture Disclosures
 
-This is not CRDT synchronization yet. It does not perform character-level merges, peer-to-peer transport, QR pairing, zero-knowledge client-side encryption, delta attachment transfer, virtual/ghost files, native mobile background execution, or official Obsidian Community Plugins distribution.
+- **E2EE Vaults:** When client-side encryption is enabled, file contents and real-time collaboration updates are encrypted and decrypted strictly on your client device using WebCrypto AES-256-GCM. The Synkk server only stores and routes opaque ciphertext blobs. For E2EE vaults, server-side search and RAG indexing are intentionally disabled to guarantee zero server knowledge.
+- **Standard Vaults:** For standard (non-E2EE) vaults, the server receives file contents over HTTPS so it can store, authorize, version, index for local RAG, and restore them.
+- **Transport Security:** Always deploy the Synkk server behind HTTPS and configure trusted reverse proxies appropriately.
 
-The server receives file contents so it can store, authorize, version, and restore them. Deploy Synkk only over HTTPS and on infrastructure you trust.
+## Installation & Quick Setup
 
-## Install The GitHub Public Beta
+### Method 1: Instant One-Scan Pairing (Recommended)
+
+1. In Obsidian, install and enable the **Synkk Team Vault Sync** plugin.
+2. In your Synkk web dashboard, navigate to **Devices -> Pair Device**.
+3. Scan the generated QR code with your mobile camera or click **Copy Deep Link** on desktop (`obsidian://synkk-pair?...`).
+4. Obsidian will automatically configure the server URL, scoped token, and vault bindings.
+
+### Method 2: Manual Installation
 
 1. Download `main.js`, `manifest.json`, and `styles.css` from the [v1.0.0 release](https://github.com/tawandajosephmutsena/synk-obsidian-plugin/releases/tag/1.0.0).
 2. Create `<vault>/.obsidian/plugins/synkk-sync/`.
 3. Place the three release files in that directory.
 4. In Obsidian, open **Settings -> Community plugins** and enable **Synkk Team Vault Sync**.
-5. In **Settings -> Synkk Vault Sync**, enter your HTTPS server URL ending in `/api/v1`, add a device token from Synkk, and choose the target vault.
-
-Synkk is currently distributed through GitHub. Obsidian Community Plugins and BRAT distribution are planned separately.
+5. In **Settings -> Synkk Vault Sync**, enter your HTTPS server URL ending in `/api/v1`, paste your device token, and choose the target vault.
 
 ## Development
 
 ```bash
 npm ci
 npm run build
+npm test
 ```
 
-The production command emits `main.js`; release packages also include the committed `manifest.json` and `styles.css`.
+The production command compiles TypeScript and bundles `main.js`. Release packages also include `manifest.json` and `styles.css`.
 
 ## Links
 
@@ -74,15 +82,6 @@ The production command emits `main.js`; release packages also include the commit
 - Server repo: [github.com/tawandajosephmutsena/synkk](https://github.com/tawandajosephmutsena/synkk)
 - Plugin repo: [github.com/tawandajosephmutsena/synk-obsidian-plugin](https://github.com/tawandajosephmutsena/synk-obsidian-plugin)
 - Creator studio: [Ottomate](https://ottomate.space)
-- Commercial license: Lemon Squeezy checkout opens after live checkout and activation verification.
-- AppSumo: planned after the public GitHub release path is stable.
-
-## Roadmap
-
-- **Foundation:** selective sync, `.obsidian` controls, Atomic Safety Shield, snapshots, and file-version rollback.
-- **Launch hardening:** official onboarding docs, checkout/activation verification, and clearer public release packaging.
-- **Next:** QR pairing, encrypted transport design, CRDT collaboration, visual conflict sandbox, virtual files, and smarter attachment sync.
-- **Later:** peer-assisted relay transport, native mobile background sync, and folder/team federation.
 
 ## Creators
 

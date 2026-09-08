@@ -6,9 +6,11 @@ import {
   ViewUpdate,
   WidgetType,
 } from '@codemirror/view';
-import { RangeSetBuilder, Extension } from '@codemirror/state';
+import { RangeSetBuilder, Extension, Compartment } from '@codemirror/state';
 import type SynkkPlugin from './main';
 import { CollabPeer } from './collabRelay';
+
+export const collabCompartment = new Compartment();
 
 export class CollabCursorWidget extends WidgetType {
   name: string;
@@ -79,52 +81,58 @@ export function buildCollabDecorations(
 }
 
 export function createCollabExtension(plugin: SynkkPlugin): Extension {
-  return ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet;
-      unsubscribePeers: (() => void) | null = null;
+  return [
+    collabCompartment.of([]),
+    ViewPlugin.fromClass(
+      class {
+        decorations: DecorationSet;
+        unsubscribePeers: (() => void) | null = null;
+        view: EditorView;
 
-      constructor(view: EditorView) {
-        this.decorations = buildCollabDecorations(
-          view,
-          plugin.collabRelay?.activePeers || []
-        );
+        constructor(view: EditorView) {
+          this.view = view;
+          plugin.collabRelay?.registerEditorView(view);
 
-        if (plugin.collabRelay) {
-          this.unsubscribePeers = plugin.collabRelay.onPeersChange((peers) => {
-            this.decorations = buildCollabDecorations(view, peers);
-            view.requestMeasure();
-          });
-        }
-      }
-
-      update(update: ViewUpdate): void {
-        // 1. If document changed or peers updated, rebuild decorations
-        if (update.docChanged) {
           this.decorations = buildCollabDecorations(
-            update.view,
+            view,
             plugin.collabRelay?.activePeers || []
           );
+
+          if (plugin.collabRelay) {
+            this.unsubscribePeers = plugin.collabRelay.onPeersChange((peers) => {
+              this.decorations = buildCollabDecorations(view, peers);
+              view.requestMeasure();
+            });
+          }
         }
 
-        // 2. Track local cursor position to relay to peers
-        if (update.selectionSet || update.docChanged) {
-          const head = update.state.selection.main.head;
-          const line = update.state.doc.lineAt(head);
-          const col = head - line.from;
-          plugin.collabRelay?.updateLocalCursor(line.number, col);
-        }
-      }
+        update(update: ViewUpdate): void {
+          if (update.docChanged) {
+            this.decorations = buildCollabDecorations(
+              update.view,
+              plugin.collabRelay?.activePeers || []
+            );
+          }
 
-      destroy(): void {
-        if (this.unsubscribePeers) {
-          this.unsubscribePeers();
-          this.unsubscribePeers = null;
+          if (update.selectionSet || update.docChanged) {
+            const head = update.state.selection.main.head;
+            const line = update.state.doc.lineAt(head);
+            const col = head - line.from;
+            plugin.collabRelay?.updateLocalCursor(line.number, col);
+          }
         }
+
+        destroy(): void {
+          plugin.collabRelay?.unregisterEditorView(this.view);
+          if (this.unsubscribePeers) {
+            this.unsubscribePeers();
+            this.unsubscribePeers = null;
+          }
+        }
+      },
+      {
+        decorations: (v) => v.decorations,
       }
-    },
-    {
-      decorations: (v) => v.decorations,
-    }
-  );
+    ),
+  ];
 }

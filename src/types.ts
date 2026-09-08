@@ -27,6 +27,15 @@ export interface SynkkSettings {
   ragEnabled: boolean;
   ragUseLocalOllama: boolean;
   ragOllamaUrl: string;
+  broadcasting?: BroadcastingConfig;
+}
+
+export interface BroadcastingConfig {
+  driver: string;
+  key: string;
+  host: string;
+  port: number;
+  scheme: string;
 }
 
 export const DEFAULT_SETTINGS: SynkkSettings = {
@@ -95,8 +104,20 @@ export interface RemoteDeletedItem {
   version: number;
 }
 
+export interface ManifestCapabilities {
+  e2ee?: boolean;
+  whole_file_sync?: boolean;
+  realtime_collaboration?: boolean;
+  version_history?: boolean;
+  ghost_files?: boolean;
+  [key: string]: boolean | undefined;
+}
+
 export interface ManifestResponse {
   status: string;
+  protocol_version?: number;
+  minimum_protocol_version?: number;
+  capabilities?: ManifestCapabilities;
   vault: {
     id: number;
     name: string;
@@ -111,9 +132,12 @@ export interface ManifestResponse {
 }
 
 export interface LocalFileState {
-  sha256: string;
+  sha256?: string;
+  localPlaintextSha256?: string;
+  remotePayloadSha256?: string;
   mtime: number;
   version: number;
+  is_encrypted?: boolean;
 }
 
 export interface SyncStateData {
@@ -138,6 +162,7 @@ export interface VerifyAuthResponse {
     name: string;
     platform: string;
   };
+  broadcasting?: BroadcastingConfig;
 }
 
 export interface UploadResponse {

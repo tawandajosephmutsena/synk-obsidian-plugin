@@ -52,7 +52,7 @@ export class E2eeVaultEngine {
     this.key = await crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: saltBytes,
+        salt: saltBytes as unknown as BufferSource,
         iterations: 100000,
         hash: 'SHA-256',
       },
@@ -65,6 +65,10 @@ export class E2eeVaultEngine {
 
   public isReady(): boolean {
     return this.key !== null;
+  }
+
+  public getKey(): CryptoKey | null {
+    return this.key;
   }
 
   public async encrypt(data: Uint8Array | ArrayBuffer): Promise<{
@@ -83,10 +87,10 @@ export class E2eeVaultEngine {
     const encryptedBuf = await crypto.subtle.encrypt(
       {
         name: 'AES-GCM',
-        iv,
+        iv: iv as unknown as BufferSource,
       },
       this.key,
-      raw
+      raw as unknown as BufferSource
     );
 
     const fullEncrypted = new Uint8Array(encryptedBuf);
@@ -139,10 +143,10 @@ export class E2eeVaultEngine {
     const decrypted = await crypto.subtle.decrypt(
       {
         name: 'AES-GCM',
-        iv,
+        iv: iv as unknown as BufferSource,
       },
       this.key,
-      combined
+      combined as unknown as BufferSource
     );
 
     return new Uint8Array(decrypted);
@@ -155,8 +159,18 @@ export class E2eeVaultEngine {
   }> {
     const enc = new TextEncoder();
     const result = await this.encrypt(enc.encode(text));
-    const binary = String.fromCharCode(...result.ciphertext);
-    const base64 = btoa(binary);
+    let base64: string;
+    if (typeof Buffer !== 'undefined') {
+      base64 = Buffer.from(result.ciphertext).toString('base64');
+    } else {
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < result.ciphertext.length; i += chunkSize) {
+        const chunk = result.ciphertext.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      base64 = btoa(binary);
+    }
     return {
       ciphertextBase64: base64,
       ivHex: result.ivHex,
@@ -169,10 +183,15 @@ export class E2eeVaultEngine {
     ivHex: string,
     tagHex?: string
   ): Promise<string> {
-    const binaryStr = atob(ciphertextBase64);
-    const bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
+    let bytes: Uint8Array;
+    if (typeof Buffer !== 'undefined') {
+      bytes = new Uint8Array(Buffer.from(ciphertextBase64, 'base64'));
+    } else {
+      const binaryStr = atob(ciphertextBase64);
+      bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
     }
 
     const decryptedBytes = await this.decrypt(bytes, ivHex, tagHex);

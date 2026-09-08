@@ -2,7 +2,8 @@ import { App, Notice, Platform, TFile } from 'obsidian';
 import { SynkkApiClient } from './apiClient';
 import { E2eeVaultEngine } from './e2ee';
 import { GhostFileManager } from './ghostFiles';
-import { deletionGuard, shouldSyncPath } from './sync-policy';
+import { chunkFilesForBatchUpload, deletionGuard, shouldSyncPath } from './sync-policy';
+import { createFileState, getIsolatedStatePath, isFileModifiedLocally, reconcileRemotePull } from './sync-state';
 import { LocalFileState, SyncStateData, SynkkSettings } from './types';
 
 interface SyncResult {
@@ -18,6 +19,8 @@ export class SynkkSyncEngine {
   private getSettings: () => SynkkSettings;
   private saveSettings: (settings: Partial<SynkkSettings>) => Promise<void>;
   private isSyncing: boolean = false;
+  private syncPromise: Promise<SyncResult> | null = null;
+  private syncQueue: Array<(result: SyncResult) => void> = [];
   private onStatusChange?: (status: string, isSyncing: boolean) => void;
   public e2eeEngine: E2eeVaultEngine = new E2eeVaultEngine();
 
@@ -40,12 +43,42 @@ export class SynkkSyncEngine {
     this.onStatusChange = onStatusChange;
   }
 
+  public getStatePath(): string {
+    const settings = this.getSettings();
+    return getIsolatedStatePath(settings.serverUrl, settings.selectedVaultSlug);
+  }
+
   public async loadState(): Promise<void> {
     try {
-      const statePath = '.obsidian/synkk-state.json';
+      const statePath = this.getStatePath();
       if (await this.app.vault.adapter.exists(statePath)) {
         const raw = await this.app.vault.adapter.read(statePath);
         this.stateData = JSON.parse(raw);
+        for (const f of Object.values(this.stateData.files || {})) {
+          if (!f.localPlaintextSha256 && f.sha256) {
+            f.localPlaintextSha256 = f.sha256;
+          }
+          if (!f.remotePayloadSha256 && f.sha256) {
+            f.remotePayloadSha256 = f.sha256;
+          }
+        }
+        return;
+      }
+
+      // Fallback migration from legacy non-isolated state file
+      const legacyPath = '.obsidian/synkk-state.json';
+      if (await this.app.vault.adapter.exists(legacyPath)) {
+        const raw = await this.app.vault.adapter.read(legacyPath);
+        this.stateData = JSON.parse(raw);
+        for (const f of Object.values(this.stateData.files || {})) {
+          if (!f.localPlaintextSha256 && f.sha256) {
+            f.localPlaintextSha256 = f.sha256;
+          }
+          if (!f.remotePayloadSha256 && f.sha256) {
+            f.remotePayloadSha256 = f.sha256;
+          }
+        }
+        await this.saveState();
       }
     } catch {
       this.stateData = { lastSyncVersion: 0, files: {} };
@@ -54,7 +87,7 @@ export class SynkkSyncEngine {
 
   public async saveState(): Promise<void> {
     try {
-      const statePath = '.obsidian/synkk-state.json';
+      const statePath = this.getStatePath();
       await this.app.vault.adapter.write(statePath, JSON.stringify(this.stateData, null, 2));
     } catch (e) {
       console.error('Failed to save Synkk state file:', e);
@@ -148,11 +181,31 @@ export class SynkkSyncEngine {
   }
 
   public async sync(): Promise<SyncResult> {
-    if (this.isSyncing) {
-      new Notice('Synkk: A synchronization is already in progress.');
-      return { pulled: 0, pushed: 0, conflicts: 0, errors: 0 };
+    if (this.syncPromise) {
+      return new Promise<SyncResult>((resolve) => {
+        this.syncQueue.push(resolve);
+      });
     }
 
+    this.syncPromise = this.executeSync();
+    try {
+      const result = await this.syncPromise;
+      return result;
+    } finally {
+      this.syncPromise = null;
+      if (this.syncQueue.length > 0) {
+        const queuedResolvers = [...this.syncQueue];
+        this.syncQueue = [];
+        this.sync().then((nextResult) => {
+          for (const resolve of queuedResolvers) {
+            resolve(nextResult);
+          }
+        });
+      }
+    }
+  }
+
+  private async executeSync(): Promise<SyncResult> {
     const settings = this.getSettings();
     if (!settings.deviceToken || !settings.selectedVaultSlug) {
       new Notice('Synkk: Please configure your Device Token and select a Vault in settings.');
@@ -265,16 +318,13 @@ export class SynkkSyncEngine {
         } else {
           const localBuffer = await this.app.vault.adapter.readBinary(remoteFile.path);
           const localSha = await this.computeSha256(localBuffer);
+          const known = this.stateData.files[remoteFile.path];
 
-          if (localSha !== remoteFile.sha256) {
-            // Hash differs! Check if local was modified or newly created concurrently
-            const lastKnown = this.stateData.files[remoteFile.path];
-            if (!lastKnown || lastKnown.sha256 !== localSha) {
-              // Local was changed or newly created: concurrent conflict!
-              isConflict = true;
-              localConflictBuffer = localBuffer;
-            }
-            needsDownload = true;
+          const decision = reconcileRemotePull(remoteFile, localSha, known);
+          needsDownload = decision.needsDownload;
+          isConflict = decision.isConflict;
+          if (isConflict) {
+            localConflictBuffer = localBuffer;
           }
         }
 
@@ -312,7 +362,10 @@ export class SynkkSyncEngine {
                   remoteFile.encryption_iv!,
                   remoteFile.encryption_tag
                 );
-                buffer = decryptedBytes.buffer;
+                buffer = decryptedBytes.buffer.slice(
+                  decryptedBytes.byteOffset,
+                  decryptedBytes.byteOffset + decryptedBytes.byteLength
+                ) as ArrayBuffer;
               } catch (decErr: any) {
                 console.error(`E2EE decryption error on ${remoteFile.path}:`, decErr);
                 new Notice(`Synkk: Could not decrypt "${remoteFile.path}". Check passphrase in Settings.`);
@@ -334,11 +387,14 @@ export class SynkkSyncEngine {
 
             await this.app.vault.adapter.writeBinary(remoteFile.path, buffer);
 
-            this.stateData.files[remoteFile.path] = {
-              sha256: remoteFile.sha256,
-              mtime: Date.now(),
+            const localPlaintextSha = await this.computeSha256(buffer);
+            this.stateData.files[remoteFile.path] = createFileState({
+              localPlaintextSha,
+              remotePayloadSha: remoteFile.sha256,
               version: remoteFile.version,
-            };
+              mtime: Date.now(),
+              isEncrypted: Boolean(remoteFile.is_encrypted),
+            });
 
             pulled++;
           } catch (err: any) {
@@ -346,11 +402,17 @@ export class SynkkSyncEngine {
             errors++;
           }
         } else {
-          this.stateData.files[remoteFile.path] = {
-            sha256: remoteFile.sha256,
-            mtime: Date.now(),
-            version: remoteFile.version,
-          };
+          if (!this.stateData.files[remoteFile.path]) {
+            const localBuffer = await this.app.vault.adapter.readBinary(remoteFile.path);
+            const localPlaintextSha = await this.computeSha256(localBuffer);
+            this.stateData.files[remoteFile.path] = createFileState({
+              localPlaintextSha,
+              remotePayloadSha: remoteFile.sha256,
+              version: remoteFile.version,
+              mtime: Date.now(),
+              isEncrypted: Boolean(remoteFile.is_encrypted),
+            });
+          }
         }
       }
 
@@ -361,7 +423,7 @@ export class SynkkSyncEngine {
         file: TFile;
         path: string;
         buffer: ArrayBuffer;
-        sha256: string;
+        localSha: string;
         knownVersion: number;
       }> = [];
 
@@ -375,12 +437,12 @@ export class SynkkSyncEngine {
           const known = this.stateData.files[path];
 
           // If file is new or modified locally
-          if (!known || known.sha256 !== sha256) {
+          if (isFileModifiedLocally(sha256, known)) {
             filesToPush.push({
               file,
               path,
               buffer,
-              sha256,
+              localSha: sha256,
               knownVersion: known ? known.version : 0,
             });
           }
@@ -390,12 +452,12 @@ export class SynkkSyncEngine {
         }
       }
 
-      // Process modified files in batches of 50
-      const BATCH_SIZE = 50;
-      for (let i = 0; i < filesToPush.length; i += BATCH_SIZE) {
-        const chunk = filesToPush.slice(i, i + BATCH_SIZE);
-        const batchProgress = filesToPush.length > BATCH_SIZE
-          ? ` (${i + 1}-${Math.min(i + chunk.length, filesToPush.length)} of ${filesToPush.length})`
+      // Process modified files in dynamic batches constrained by count and payload size
+      const fileChunks = chunkFilesForBatchUpload(filesToPush, 50, 8 * 1024 * 1024);
+      let pushedSoFar = 0;
+      for (const chunk of fileChunks) {
+        const batchProgress = fileChunks.length > 1
+          ? ` (${pushedSoFar + 1}-${pushedSoFar + chunk.length} of ${filesToPush.length})`
           : '';
         this.onStatusChange?.(`Pushing changes${batchProgress}...`, true);
 
@@ -407,11 +469,18 @@ export class SynkkSyncEngine {
           // Zero-Knowledge E2EE Encryption
           if (settings.e2eeEnabled && this.e2eeEngine.isReady()) {
             const enc = await this.e2eeEngine.encrypt(item.buffer);
-            uploadBuffer = enc.ciphertext.buffer;
+            uploadBuffer = enc.ciphertext.buffer.slice(
+              enc.ciphertext.byteOffset,
+              enc.ciphertext.byteOffset + enc.ciphertext.byteLength
+            ) as ArrayBuffer;
             uploadExtra = {
               is_encrypted: true,
               encryption_iv: enc.ivHex,
               encryption_tag: enc.tagHex,
+              encrypted: true,
+              iv: enc.ivHex,
+              tag: enc.tagHex,
+              format_version: 2,
             };
           }
 
@@ -457,17 +526,22 @@ export class SynkkSyncEngine {
               pushed++;
             }
 
-            this.stateData.files[item.path] = {
-              sha256: item.sha256,
-              mtime: item.file.stat.mtime,
+            const isEncrypted = Boolean(settings.e2eeEnabled && this.e2eeEngine.isReady());
+            this.stateData.files[item.path] = createFileState({
+              localPlaintextSha: item.localSha,
+              remotePayloadSha: r.sha256 || item.localSha,
               version: r.version || item.knownVersion,
-            };
+              mtime: item.file.stat.mtime,
+              isEncrypted,
+            });
           }
         } catch (err: any) {
           console.error(`Error in batch upload:`, err);
           errors += chunk.length;
           new Notice(`Synkk: Batch upload failed: ${err.message || 'Unknown error'}`);
         }
+
+        pushedSoFar += chunk.length;
       }
 
       // STEP 5: Detect and propagate local deletions

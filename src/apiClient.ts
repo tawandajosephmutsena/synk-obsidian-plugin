@@ -29,6 +29,7 @@ export class SynkkApiClient {
       'Authorization': `Bearer ${this.token}`,
       'Accept': 'application/json',
       'X-Client-Platform': this.getPlatform(),
+      'X-Synkk-Protocol': '2',
     };
   }
 
@@ -37,6 +38,15 @@ export class SynkkApiClient {
       ...params,
       throw: false,
     });
+
+    if (res.status === 426) {
+      const data = res.json;
+      const message = data?.message || 'Synkk Protocol Upgrade Required: Please update your Synkk plugin to protocol version 2.';
+      const err: any = new Error(message);
+      err.status = 426;
+      err.isProtocolUpgradeRequired = true;
+      throw err;
+    }
 
     if (res.status === 410) {
       const err: any = new Error('Synkk Security: This device token was remotely wiped by an enterprise administrator.');
@@ -116,10 +126,7 @@ export class SynkkApiClient {
     const res = await this.request({
       url,
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'X-Client-Platform': this.getPlatform(),
-      },
+      headers: this.getHeaders(),
     });
 
     if (res.status !== 200) {
@@ -139,10 +146,7 @@ export class SynkkApiClient {
     const res = await this.request({
       url,
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'X-Client-Platform': this.getPlatform(),
-      },
+      headers: this.getHeaders(),
     });
 
     if (res.status !== 200) {
@@ -176,9 +180,13 @@ export class SynkkApiClient {
     };
 
     if (extraParams?.is_encrypted) {
+      payload.encrypted = true;
       payload.is_encrypted = true;
+      payload.iv = extraParams.encryption_iv;
       payload.encryption_iv = extraParams.encryption_iv;
+      payload.tag = extraParams.encryption_tag;
       payload.encryption_tag = extraParams.encryption_tag;
+      payload.format_version = 2;
     }
 
     if (extraParams?.is_ghost) {
@@ -298,14 +306,26 @@ export class SynkkApiClient {
     sessionId: string,
     deviceName: string,
     platform: string = 'ios'
-  ): Promise<{ status: string; plain_token: string; server_url: string; team_slug: string; vault_slug?: string }> {
-    const url = `${serverUrl.replace(/\/+$/, '')}/pairing/exchange`;
+  ): Promise<{
+    status: string;
+    plain_token: string;
+    device_id: number;
+    server_url: string;
+    team_slug: string;
+    vault_slug?: string;
+    access_scope?: string;
+    user?: { id: number; name: string; email: string };
+    team?: { id: number; name: string; slug: string };
+  }> {
+    const cleanServerUrl = serverUrl.replace(/\/+$/, '');
+    const url = `${cleanServerUrl}/pairing/exchange`;
     const res = await requestUrl({
       url,
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
+        'X-Synkk-Protocol': '2',
       },
       body: JSON.stringify({
         session: sessionId,
@@ -315,8 +335,21 @@ export class SynkkApiClient {
       throw: false,
     });
 
+    if (res.status === 410) {
+      const data = res.json;
+      const message = data?.message || data?.error || 'Pairing session has expired or has already been used. Please generate a new QR code.';
+      const err: any = new Error(message);
+      err.status = 410;
+      err.isExpiredOrConsumed = true;
+      throw err;
+    }
+
     if (res.status !== 200) {
-      throw new Error(`Pairing exchange failed (HTTP ${res.status}): ${res.text}`);
+      const data = res.json;
+      const message = data?.message || data?.error || res.text || `Pairing exchange failed (HTTP ${res.status})`;
+      const err: any = new Error(message);
+      err.status = res.status;
+      throw err;
     }
 
     return res.json;
@@ -355,6 +388,19 @@ export class SynkkApiClient {
     }>
   ): Promise<{ status: string; latest_version: number; summary: any; items: any[] }> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/batch-sync`;
+    const normalizedItems = items.map(item => {
+      if (item.is_encrypted) {
+        return {
+          ...item,
+          encrypted: true,
+          iv: item.encryption_iv,
+          tag: item.encryption_tag,
+          format_version: 2,
+        };
+      }
+      return item;
+    });
+
     const res = await this.request({
       url,
       method: 'POST',
@@ -362,7 +408,7 @@ export class SynkkApiClient {
         ...this.getHeaders(),
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ changes: normalizedItems, items: normalizedItems }),
     });
 
     if (res.status !== 200) {

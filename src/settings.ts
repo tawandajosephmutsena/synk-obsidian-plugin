@@ -23,11 +23,11 @@ export class SynkkSettingTab extends PluginSettingTab {
 
     // Instant Quick Connect (QR payload or connect string)
     new Setting(containerEl)
-      .setName('⚡ Instant Quick Connect')
-      .setDesc('Paste your mobile QR scan code, 2-second pairing session JSON, or device token to auto-configure in 1 second.')
+      .setName('⚡ One-Scan Quick Connect')
+      .setDesc('Paste your one-scan pairing URL (obsidian://synkk-pair?...), session JSON, or device sync token.')
       .addText((text) => {
         text
-          .setPlaceholder('Paste QR session JSON {"v":2,"type":"synkk-pairing-session",...} or token')
+          .setPlaceholder('Paste obsidian://synkk-pair?... URL, session JSON, or token')
           .onChange(async (val) => {
             const trimmed = val.trim();
             if (!trimmed) return;
@@ -37,36 +37,26 @@ export class SynkkSettingTab extends PluginSettingTab {
 
               if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
                 parsed = JSON.parse(trimmed);
-              } else if (trimmed.startsWith('synkk://')) {
-                const url = new URL(trimmed.replace('synkk://', 'http://synkk-placeholder/'));
+              } else if (trimmed.startsWith('obsidian://synkk-pair') || trimmed.startsWith('synkk-pair://') || trimmed.startsWith('synkk://')) {
+                const rawUrl = trimmed.replace(/^(obsidian:\/\/synkk-pair|synkk-pair:\/\/|synkk:\/\/pair)\??/, 'http://synkk-placeholder/?');
+                const url = new URL(rawUrl);
                 parsed = {
+                  type: 'synkk-pairing-session',
                   server: url.searchParams.get('server') || undefined,
+                  session: url.searchParams.get('session') || undefined,
                   token: url.searchParams.get('token') || undefined,
                   vault: url.searchParams.get('vault') || undefined,
+                  v: url.searchParams.get('v') || '2',
                 };
               } else if (trimmed.startsWith('synkk_')) {
                 parsed = { token: trimmed };
               }
 
               if (parsed?.type === 'synkk-pairing-session' && parsed.session && parsed.server) {
-                new Notice('⚡ Exchanging 2-second pairing session with Synkk...');
-                try {
-                  const { SynkkApiClient } = await import('./apiClient');
-                  const exRes = await SynkkApiClient.exchangePairing(parsed.server, parsed.session, 'Obsidian Client', 'ios');
-                  this.plugin.settings.serverUrl = exRes.server_url;
-                  this.plugin.settings.deviceToken = exRes.plain_token;
-                  if (exRes.vault_slug) {
-                    this.plugin.settings.selectedVaultSlug = exRes.vault_slug;
-                  }
-                  await this.plugin.saveSettings();
-                  this.plugin.apiClient.updateConfig(exRes.server_url, exRes.plain_token);
-                  new Notice(`⚡ Synkk paired instantly! Linked to team ${exRes.team_slug}.`);
-                  this.display();
-                  return;
-                } catch (e: any) {
-                  new Notice(`Pairing session error: ${e.message}`);
-                  return;
-                }
+                const { handlePairingProtocol } = await import('./pairing');
+                await handlePairingProtocol(this.plugin, parsed);
+                this.display();
+                return;
               }
 
               if (parsed && (parsed.server || parsed.token || parsed.vault)) {
