@@ -26,12 +26,18 @@ export function isOriginSecure(serverUrl: string): boolean {
     }
     if (url.protocol === 'http:') {
       const hostname = url.hostname.toLowerCase();
+      const isPrivateIp =
+        /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname);
+
       return (
         hostname === 'localhost' ||
         hostname === '127.0.0.1' ||
         hostname === '[::1]' ||
         hostname.endsWith('.test') ||
-        hostname.endsWith('.local')
+        hostname.endsWith('.local') ||
+        isPrivateIp
       );
     }
     return false;

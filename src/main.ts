@@ -71,11 +71,33 @@ export default class SynkkPlugin extends Plugin {
       await handlePairingProtocol(this, params);
     });
 
+    // Check for cold-start deep link parameters if app was launched via protocol URI
+    try {
+      if (typeof window !== 'undefined' && window.location?.search) {
+        const searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.get('action') === 'synkk-pair' || searchParams.has('session')) {
+          const paramsObj: Record<string, string> = {};
+          searchParams.forEach((val, key) => { paramsObj[key] = val; });
+          if (paramsObj.server && paramsObj.session) {
+            const { handlePairingProtocol } = await import('./pairing');
+            setTimeout(() => { handlePairingProtocol(this, paramsObj); }, 500);
+          }
+        }
+      }
+    } catch (e) {
+      console.debug('Synkk: Cold-start URL check skipped:', e);
+    }
+
     // Status bar indicator
     this.statusBarEl = this.addStatusBarItem();
     this.statusBarEl.addClass('synkk-status-bar');
     this.updateStatusBar('Synkk: Ready', false);
-    this.statusBarEl.onClickEvent(() => {
+    this.statusBarEl.onClickEvent(async () => {
+      if (this.statusBarEl.textContent?.includes('Safety Shield')) {
+        this.settings.safetyOverrideForNextSync = true;
+        await this.saveData(this.settings);
+        new Notice('⚡ Synkk: Safety Shield override enabled for this sync run.', 5000);
+      }
       this.syncEngine.sync();
     });
 
