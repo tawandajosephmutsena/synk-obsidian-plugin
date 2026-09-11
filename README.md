@@ -77,8 +77,8 @@ The production command compiles TypeScript and bundles `main.js`. Release packag
 
 ## Links
 
-- Public app: [synkk.ottomate.space](https://synkk.ottomate.space)
-- Documentation: [synkk.ottomate.space/docs](https://synkk.ottomate.space/docs)
+- Public app: [synkk.ottomate.space](https://synkk.space)
+- Documentation: [synkk.ottomate.space/docs](https://synkk.space/docs)
 - Server repo: [github.com/tawandajosephmutsena/synkk](https://github.com/tawandajosephmutsena/synkk)
 - Plugin repo: [github.com/tawandajosephmutsena/synk-obsidian-plugin](https://github.com/tawandajosephmutsena/synk-obsidian-plugin)
 - Creator studio: [Ottomate](https://ottomate.space)
