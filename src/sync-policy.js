@@ -101,6 +101,11 @@ function shouldSyncPath(path, settings) {
     return false;
   }
 
+  const segments = normalizedPath.split('/');
+  if (segments.some((seg) => seg.startsWith('.') && seg !== '.obsidian')) {
+    return false;
+  }
+
   if (alwaysExcludedPrefixes.some((prefix) => matchesPrefix(normalizedPath, prefix))) {
     return false;
   }
