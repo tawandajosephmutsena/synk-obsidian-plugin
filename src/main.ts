@@ -20,6 +20,7 @@ export default class SynkkPlugin extends Plugin {
   echoManager: SynkkEchoManager;
   private statusBarEl: HTMLElement;
   private syncIntervalId: number | null = null;
+  private debouncedSyncTimeout: number | null = null;
 
   async onload() {
     await this.loadSettings();
@@ -186,6 +187,36 @@ export default class SynkkPlugin extends Plugin {
       })
     );
 
+    // Auto-sync on local file change, creation, deletion, or rename
+    this.registerEvent(
+      this.app.vault.on('modify', (file) => {
+        if (file instanceof TFile && this.syncEngine.shouldSync(file.path)) {
+          this.triggerDebouncedSync();
+        }
+      })
+    );
+    this.registerEvent(
+      this.app.vault.on('create', (file) => {
+        if (file instanceof TFile && this.syncEngine.shouldSync(file.path)) {
+          this.triggerDebouncedSync();
+        }
+      })
+    );
+    this.registerEvent(
+      this.app.vault.on('delete', (file) => {
+        if (file instanceof TFile && this.syncEngine.shouldSync(file.path)) {
+          this.triggerDebouncedSync();
+        }
+      })
+    );
+    this.registerEvent(
+      this.app.vault.on('rename', (file, oldPath) => {
+        if (file instanceof TFile && (this.syncEngine.shouldSync(file.path) || this.syncEngine.shouldSync(oldPath))) {
+          this.triggerDebouncedSync();
+        }
+      })
+    );
+
     // Command: Check Transport Status
     this.addCommand({
       id: 'synkk-check-transport-status',
@@ -255,6 +286,10 @@ export default class SynkkPlugin extends Plugin {
       window.clearInterval(this.syncIntervalId);
       this.syncIntervalId = null;
     }
+    if (this.debouncedSyncTimeout !== null) {
+      window.clearTimeout(this.debouncedSyncTimeout);
+      this.debouncedSyncTimeout = null;
+    }
     if (this.backgroundRelay) {
       this.backgroundRelay.stop();
     }
@@ -264,6 +299,22 @@ export default class SynkkPlugin extends Plugin {
     if (this.collabRelay?.currentPath && this.settings.selectedVaultSlug) {
       this.collabRelay.leave(this.settings.selectedVaultSlug, this.collabRelay.currentPath);
     }
+  }
+
+  public triggerDebouncedSync(delayMs: number = 2500) {
+    if (!this.settings.syncOnFileChange) return;
+    if (!this.settings.deviceToken || !this.settings.selectedVaultSlug) return;
+    if (this.syncEngine.getIsSyncing()) return;
+
+    if (this.debouncedSyncTimeout !== null) {
+      window.clearTimeout(this.debouncedSyncTimeout);
+    }
+    this.debouncedSyncTimeout = window.setTimeout(async () => {
+      this.debouncedSyncTimeout = null;
+      if (!this.syncEngine.getIsSyncing()) {
+        await this.syncEngine.sync();
+      }
+    }, delayMs);
   }
 
   async loadSettings() {

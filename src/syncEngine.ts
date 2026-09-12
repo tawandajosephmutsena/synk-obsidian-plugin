@@ -94,7 +94,7 @@ export class SynkkSyncEngine {
     }
   }
 
-  private shouldSync(path: string): boolean {
+  public shouldSync(path: string): boolean {
     return shouldSyncPath(path, {
       ...this.getSettings(),
       isMobile: Platform.isMobile,

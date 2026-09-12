@@ -46,7 +46,7 @@ export const DEFAULT_SETTINGS: SynkkSettings = {
   autoSync: true,
   syncIntervalMinutes: 5,
   syncOnStartup: true,
-  syncOnFileChange: false,
+  syncOnFileChange: true,
   includedPaths: '',
   excludedPaths: '',
   syncPluginSuite: true,

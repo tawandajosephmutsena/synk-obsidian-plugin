@@ -414,6 +414,17 @@ export class SynkkSettingTab extends PluginSettingTab {
         })
       );
 
+    // Sync on File Change
+    new Setting(containerEl)
+      .setName('Sync on File Change')
+      .setDesc('Automatically trigger sync a few seconds after creating, editing, or deleting a note')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.syncOnFileChange).onChange(async (val) => {
+          this.plugin.settings.syncOnFileChange = val;
+          await this.plugin.saveSettings();
+        })
+      );
+
     // Manual Sync Button
     new Setting(containerEl)
       .setName('Manual Sync')
