@@ -63,6 +63,22 @@ export class SynkkApiClient {
       throw err;
     }
 
+    if (res.status === 422) {
+      const data = res.json;
+      let firstError = data?.message;
+      if (data?.errors && typeof data.errors === 'object') {
+        const errorKeys = Object.keys(data.errors);
+        if (errorKeys.length > 0 && Array.isArray(data.errors[errorKeys[0]])) {
+          firstError = `${errorKeys[0]}: ${data.errors[errorKeys[0]][0]}`;
+        }
+      }
+      const message = firstError || 'Validation error (HTTP 422): Malformed request payload or file path.';
+      const err: any = new Error(message);
+      err.status = 422;
+      err.validationErrors = data?.errors;
+      throw err;
+    }
+
     if (res.status === 403) {
       const data = res.json;
       const message = data?.message || 'Permission denied: Action or IP address not allowed.';
