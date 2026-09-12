@@ -466,8 +466,19 @@ export class SynkkSyncEngine {
           let uploadBuffer: ArrayBuffer = item.buffer;
           let uploadExtra: any = {};
 
-          // Zero-Knowledge E2EE Encryption
-          if (settings.e2eeEnabled && this.e2eeEngine.isReady()) {
+          const isVaultE2ee = Boolean(manifest.vault?.is_e2ee || settings.e2eeEnabled);
+
+          if (isVaultE2ee) {
+            if (!this.e2eeEngine.isReady() && settings.e2eePassphrase && manifest.vault?.e2ee_salt) {
+              await this.e2eeEngine.initialize(settings.e2eePassphrase, manifest.vault.e2ee_salt);
+            }
+
+            if (!this.e2eeEngine.isReady()) {
+              new Notice('Synkk: Vault has Zero-Knowledge E2EE enabled on server. Please enter your passphrase in Settings.', 9000);
+              errors++;
+              continue;
+            }
+
             const enc = await this.e2eeEngine.encrypt(item.buffer);
             uploadBuffer = enc.ciphertext.buffer.slice(
               enc.ciphertext.byteOffset,
