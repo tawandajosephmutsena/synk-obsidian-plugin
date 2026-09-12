@@ -1,7 +1,7 @@
 {
   "id": "synkk-sync",
   "name": "Synkk Team Vault Sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "0.15.0",
   "description": "Whole-file Obsidian team-vault sync with path permissions, selective device rules, and deletion safety controls.",
   "author": "Ottomate",

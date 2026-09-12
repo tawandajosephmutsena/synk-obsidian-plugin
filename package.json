@@ -1,6 +1,6 @@
 {
   "name": "synkk-sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Whole-file team vault synchronization for Obsidian powered by a self-hosted Synkk server",
   "main": "main.js",
   "scripts": {
