@@ -93,10 +93,10 @@ export class SynkkSettingTab extends PluginSettingTab {
     // Server URL
     new Setting(containerEl)
       .setName('Server API URL')
-      .setDesc('Your Synkk backend endpoint (e.g. https://synkk.ottomate.space/api/v1)')
+      .setDesc('Your Synkk backend endpoint (e.g. https://synkk.space/api/v1)')
       .addText((text) =>
         text
-          .setPlaceholder('https://synkk.ottomate.space/api/v1')
+          .setPlaceholder('https://synkk.space/api/v1')
           .setValue(this.plugin.settings.serverUrl)
           .onChange(async (value) => {
             this.plugin.settings.serverUrl = value.trim();

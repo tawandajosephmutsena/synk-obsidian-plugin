@@ -39,7 +39,7 @@ export interface BroadcastingConfig {
 }
 
 export const DEFAULT_SETTINGS: SynkkSettings = {
-  serverUrl: 'https://synkk.ottomate.space/api/v1',
+  serverUrl: 'https://synkk.space/api/v1',
   deviceToken: '',
   selectedVaultSlug: '',
   selectedVaultName: '',
