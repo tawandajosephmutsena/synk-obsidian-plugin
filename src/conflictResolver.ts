@@ -1,4 +1,4 @@
-import { App, Modal, Notice, Setting, TFile } from 'obsidian';
+import { App, Modal, Notice, Setting } from 'obsidian';
 import type SynkkPlugin from './main';
 
 export interface ConflictPair {
@@ -136,7 +136,7 @@ export class ConflictResolverModal extends Modal {
       attr: { style: 'border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 10px; background: var(--background-secondary);' },
     });
     leftCol.createEl('strong', { text: `Canonical: ${this.selectedConflict?.canonicalPath}`, attr: { style: 'color: var(--text-accent); font-size: 11px; display: block; margin-bottom: 6px;' } });
-    const leftPre = leftCol.createEl('pre', {
+    leftCol.createEl('pre', {
       text: this.canonicalText,
       attr: { style: 'max-height: 180px; overflow-y: auto; font-size: 11px; white-space: pre-wrap; margin: 0;' },
     });
@@ -146,7 +146,7 @@ export class ConflictResolverModal extends Modal {
       attr: { style: 'border: 1px solid var(--color-yellow); border-radius: 8px; padding: 10px; background: var(--background-secondary);' },
     });
     rightCol.createEl('strong', { text: `Conflict Copy: ${this.selectedConflict?.conflictPath}`, attr: { style: 'color: var(--color-yellow); font-size: 11px; display: block; margin-bottom: 6px;' } });
-    const rightPre = rightCol.createEl('pre', {
+    rightCol.createEl('pre', {
       text: this.conflictText,
       attr: { style: 'max-height: 180px; overflow-y: auto; font-size: 11px; white-space: pre-wrap; margin: 0;' },
     });

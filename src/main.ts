@@ -81,7 +81,7 @@ export default class SynkkPlugin extends Plugin {
           searchParams.forEach((val, key) => { paramsObj[key] = val; });
           if (paramsObj.server && paramsObj.session) {
             const { handlePairingProtocol } = await import('./pairing');
-            setTimeout(() => { handlePairingProtocol(this, paramsObj); }, 500);
+            window.setTimeout(() => { void handlePairingProtocol(this, paramsObj); }, 500);
           }
         }
       }
@@ -99,7 +99,7 @@ export default class SynkkPlugin extends Plugin {
         await this.saveData(this.settings);
         new Notice('⚡ Synkk: Safety Shield override enabled for this sync run.', 5000);
       }
-      this.syncEngine.sync();
+      void this.syncEngine.sync();
     });
 
     // Left Ribbon Icon (Sync Now)
@@ -147,7 +147,7 @@ export default class SynkkPlugin extends Plugin {
         const activeFile = this.app.workspace.getActiveFile();
         if (activeFile) {
           if (!checking) {
-            GhostFileManager.hydrateFile(this.app, this.apiClient, this.settings.selectedVaultSlug, activeFile);
+            void GhostFileManager.hydrateFile(this.app, this.apiClient, this.settings.selectedVaultSlug, activeFile);
           }
           return true;
         }
@@ -163,7 +163,7 @@ export default class SynkkPlugin extends Plugin {
         const activeFile = this.app.workspace.getActiveFile();
         if (activeFile) {
           if (!checking) {
-            GhostFileManager.dehydrateFile(this.app, this.apiClient, this.settings.selectedVaultSlug, activeFile.path);
+            void GhostFileManager.dehydrateFile(this.app, this.apiClient, this.settings.selectedVaultSlug, activeFile.path);
           }
           return true;
         }
@@ -275,8 +275,8 @@ export default class SynkkPlugin extends Plugin {
 
     // Sync on Startup if configured
     if (this.settings.syncOnStartup && this.settings.deviceToken && this.settings.selectedVaultSlug) {
-      setTimeout(() => {
-        this.syncEngine.sync();
+      window.setTimeout(() => {
+        void this.syncEngine.sync();
       }, 2000);
     }
   }
@@ -297,7 +297,7 @@ export default class SynkkPlugin extends Plugin {
       this.echoManager.disconnect();
     }
     if (this.collabRelay?.currentPath && this.settings.selectedVaultSlug) {
-      this.collabRelay.leave(this.settings.selectedVaultSlug, this.collabRelay.currentPath);
+      void this.collabRelay.leave(this.settings.selectedVaultSlug, this.collabRelay.currentPath);
     }
   }
 
@@ -335,7 +335,7 @@ export default class SynkkPlugin extends Plugin {
       const ms = this.settings.syncIntervalMinutes * 60 * 1000;
       this.syncIntervalId = window.setInterval(() => {
         if (!this.syncEngine.getIsSyncing()) {
-          this.syncEngine.sync();
+          void this.syncEngine.sync();
         }
       }, ms);
     }
@@ -349,7 +349,7 @@ export default class SynkkPlugin extends Plugin {
     if (isSyncing) {
       this.statusBarEl.removeClass('is-error');
       this.statusBarEl.addClass('is-syncing');
-      const spin = this.statusBarEl.createSpan({ cls: 'synkk-sync-spin', text: '🔄' });
+      this.statusBarEl.createSpan({ cls: 'synkk-sync-spin', text: '🔄' });
       this.statusBarEl.createSpan({ text: ` ${status}` });
     } else {
       this.statusBarEl.removeClass('is-syncing');

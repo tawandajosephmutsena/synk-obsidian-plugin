@@ -469,7 +469,9 @@ export class SynkkYjsProvider {
           clientID: this.awareness.clientID,
           state: null
         });
-      } catch {}
+      } catch {
+        // Ignore disconnect whisper failure
+      }
     }
     if (this.echo && this.documentId) {
       this.echo.leave(`vault-collaboration.${this.documentId}`);

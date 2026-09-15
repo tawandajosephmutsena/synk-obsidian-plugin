@@ -23,16 +23,12 @@ export class CollabCursorWidget extends WidgetType {
   }
 
   toDOM(): HTMLElement {
-    const wrap = document.createElement('span');
-    wrap.className = 'synkk-collab-cursor';
-    wrap.style.borderLeft = `2px solid ${this.color}`;
+    const wrap = createSpan({ cls: 'synkk-collab-cursor' });
+    wrap.setCssStyles({ borderLeft: `2px solid ${this.color}` });
 
-    const label = document.createElement('span');
-    label.className = 'synkk-collab-label';
-    label.style.backgroundColor = this.color;
-    label.textContent = this.name;
+    const label = wrap.createSpan({ cls: 'synkk-collab-label', text: this.name });
+    label.setCssStyles({ backgroundColor: this.color });
 
-    wrap.appendChild(label);
     return wrap;
   }
 

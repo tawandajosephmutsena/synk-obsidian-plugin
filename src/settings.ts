@@ -13,7 +13,7 @@ export class SynkkSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Synkk Vault Sync Settings' });
+    new Setting(containerEl).setName('Synkk Vault Sync Settings').setHeading();
 
     // Server Info Banner
     const infoBox = containerEl.createDiv({ cls: 'synkk-settings-info' });
@@ -175,7 +175,7 @@ export class SynkkSettingTab extends PluginSettingTab {
       });
     });
 
-    containerEl.createEl('h3', { text: 'Selective Sync & Configuration' });
+    new Setting(containerEl).setName('Selective Sync & Configuration').setHeading();
 
     new Setting(containerEl)
       .setName('Include folders')
@@ -203,7 +203,7 @@ export class SynkkSettingTab extends PluginSettingTab {
           })
       );
 
-    containerEl.createEl('h4', { text: 'Vault Environment & Plugin Suite Sync' });
+    new Setting(containerEl).setName('Vault Environment & Plugin Suite Sync').setHeading();
 
     new Setting(containerEl)
       .setName('Sync Plugin Suite & Themes')
@@ -227,7 +227,7 @@ export class SynkkSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Sync CSS snippets')
-      .setDesc('Sync files under .obsidian/snippets.')
+      .setDesc('Sync files under the snippets configuration folder.')
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.syncSnippets).onChange(async (value) => {
           this.plugin.settings.syncSnippets = value;
@@ -237,7 +237,7 @@ export class SynkkSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Sync plugin data')
-      .setDesc('Sync files under .obsidian/plugins. Only enable this for plugins whose data is safe across device types.')
+      .setDesc('Sync files under the plugins configuration folder. Only enable this for plugins whose data is safe across device types.')
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.syncPluginData).onChange(async (value) => {
           this.plugin.settings.syncPluginData = value;
@@ -245,7 +245,7 @@ export class SynkkSettingTab extends PluginSettingTab {
         })
       );
 
-    containerEl.createEl('h3', { text: 'Atomic Safety Shield' });
+    new Setting(containerEl).setName('Atomic Safety Shield').setHeading();
 
     new Setting(containerEl)
       .setName('Deletion safety threshold')
@@ -254,7 +254,6 @@ export class SynkkSettingTab extends PluginSettingTab {
         slider
           .setLimits(1, 100, 1)
           .setValue(this.plugin.settings.deletionThresholdPercent)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             this.plugin.settings.deletionThresholdPercent = value;
             await this.plugin.saveSettings();
@@ -271,7 +270,7 @@ export class SynkkSettingTab extends PluginSettingTab {
         })
       );
 
-    containerEl.createEl('h3', { text: '🔒 Zero-Knowledge End-to-End Encryption (E2EE)' });
+    new Setting(containerEl).setName('🔒 Zero-Knowledge End-to-End Encryption (E2EE)').setHeading();
 
     new Setting(containerEl)
       .setName('Enable Zero-Knowledge E2EE')
@@ -331,7 +330,7 @@ export class SynkkSettingTab extends PluginSettingTab {
         })
       );
 
-    containerEl.createEl('h3', { text: '👻 Ghost Files (Selective Sync)' });
+    new Setting(containerEl).setName('👻 Ghost Files (Selective Sync)').setHeading();
 
     new Setting(containerEl)
       .setName('Enable On-Demand Ghost Files')
@@ -359,7 +358,7 @@ export class SynkkSettingTab extends PluginSettingTab {
         });
       });
 
-    containerEl.createEl('h3', { text: '⚡ Mobile Background Transport Relays' });
+    new Setting(containerEl).setName('⚡ Mobile Background Transport Relays').setHeading();
 
     new Setting(containerEl)
       .setName('Adaptive Background Relays')
@@ -371,7 +370,7 @@ export class SynkkSettingTab extends PluginSettingTab {
         })
       );
 
-    containerEl.createEl('h3', { text: 'Sync Schedule & Automation' });
+    new Setting(containerEl).setName('Sync Schedule & Automation').setHeading();
 
     // Auto-Sync Toggle
     new Setting(containerEl)
@@ -437,7 +436,7 @@ export class SynkkSettingTab extends PluginSettingTab {
           })
       );
 
-    containerEl.createEl('h3', { text: 'Agentic Knowledge Graph & RAG Server' });
+    new Setting(containerEl).setName('Agentic Knowledge Graph & RAG Server').setHeading();
 
     new Setting(containerEl)
       .setName('Enable Vault Copilot')

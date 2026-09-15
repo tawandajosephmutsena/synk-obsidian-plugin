@@ -63,9 +63,8 @@ export function validatePairingParams(params: Record<string, string>): Validatio
     return { isValid: false, error: 'Missing required "session" identifier in pairing payload.' };
   }
 
-  let parsedUrl: URL;
   try {
-    parsedUrl = new URL(server);
+    new URL(server);
   } catch {
     return { isValid: false, error: `Invalid server URL format: "${server}".` };
   }

@@ -97,7 +97,6 @@ export class E2eeVaultEngine {
     // In WebCrypto AES-GCM, the last 16 bytes are the authentication tag
     const tagLength = 16;
     const cipherLength = fullEncrypted.length - tagLength;
-    const ciphertext = fullEncrypted.slice(0, cipherLength);
     const tag = fullEncrypted.slice(cipherLength);
 
     return {

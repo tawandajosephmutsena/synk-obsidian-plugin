@@ -39,8 +39,8 @@ export class BackgroundSyncRelay {
     // Adaptive interval: on mobile, relax background polling to 90s to conserve battery; on desktop 30s
     const effectiveInterval = Platform.isMobile ? Math.max(intervalSeconds, 60) : intervalSeconds;
 
-    this.timerId = window.setInterval(async () => {
-      await this.pollTransportRelay();
+    this.timerId = window.setInterval(() => {
+      void this.pollTransportRelay();
     }, effectiveInterval * 1000);
 
     // Also register app resume / visibility change on mobile
@@ -61,10 +61,10 @@ export class BackgroundSyncRelay {
     }
   }
 
-  private handleVisibilityChange = async (): Promise<void> => {
+  private handleVisibilityChange = (): void => {
     if (document.visibilityState === 'visible') {
       // Mobile app returned to foreground: check relay immediately
-      await this.pollTransportRelay();
+      void this.pollTransportRelay();
     }
   };
 
@@ -83,7 +83,7 @@ export class BackgroundSyncRelay {
 
       this.lastKnownVersion = status.latest_version;
       return status;
-    } catch (e) {
+    } catch {
       // Offline or network error: gracefully ignore in background relay
       return null;
     }

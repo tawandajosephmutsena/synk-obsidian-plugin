@@ -1,10 +1,9 @@
 import { App, Notice, Platform, TFile } from 'obsidian';
 import { SynkkApiClient } from './apiClient';
 import { E2eeVaultEngine } from './e2ee';
-import { GhostFileManager } from './ghostFiles';
 import { chunkFilesForBatchUpload, deletionGuard, shouldSyncPath } from './sync-policy';
 import { createFileState, getIsolatedStatePath, isFileModifiedLocally, reconcileRemotePull } from './sync-state';
-import { LocalFileState, SyncStateData, SynkkSettings } from './types';
+import { SyncStateData, SynkkSettings } from './types';
 
 interface SyncResult {
   pulled: number;
@@ -66,7 +65,8 @@ export class SynkkSyncEngine {
       }
 
       // Fallback migration from legacy non-isolated state file
-      const legacyPath = '.obsidian/synkk-state.json';
+      const configDir = (this.app.vault as any).configDir || '.obsidian';
+      const legacyPath = `${configDir}/synkk-state.json`;
       if (await this.app.vault.adapter.exists(legacyPath)) {
         const raw = await this.app.vault.adapter.read(legacyPath);
         this.stateData = JSON.parse(raw);
@@ -196,11 +196,15 @@ export class SynkkSyncEngine {
       if (this.syncQueue.length > 0) {
         const queuedResolvers = [...this.syncQueue];
         this.syncQueue = [];
-        this.sync().then((nextResult) => {
-          for (const resolve of queuedResolvers) {
-            resolve(nextResult);
-          }
-        });
+        void this.sync()
+          .then((nextResult) => {
+            for (const resolve of queuedResolvers) {
+              resolve(nextResult);
+            }
+          })
+          .catch((err) => {
+            console.error('Queued sync error:', err);
+          });
       }
     }
   }

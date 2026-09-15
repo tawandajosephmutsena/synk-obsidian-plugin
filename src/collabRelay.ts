@@ -1,4 +1,4 @@
-import { Notice, requestUrl, TFile } from 'obsidian';
+import { requestUrl, TFile } from 'obsidian';
 import * as Y from 'yjs';
 import { yCollab } from 'y-codemirror.next';
 import type { EditorView } from '@codemirror/view';
@@ -271,9 +271,9 @@ export class CollabRelayClient {
 
   scheduleSnapshotFlush(vaultSlug: string, path: string): void {
     if (this.snapshotTimer) {
-      clearTimeout(this.snapshotTimer);
+      window.clearTimeout(this.snapshotTimer);
     }
-    this.snapshotTimer = setTimeout(async () => {
+    this.snapshotTimer = window.setTimeout(async () => {
       await this.flushDurableSnapshot(vaultSlug, path);
     }, this.snapshotDebounceMs);
   }
@@ -300,7 +300,7 @@ export class CollabRelayClient {
 
   async leave(vaultSlug: string, path: string): Promise<void> {
     if (this.snapshotTimer) {
-      clearTimeout(this.snapshotTimer);
+      window.clearTimeout(this.snapshotTimer);
       this.snapshotTimer = null;
     }
 
@@ -314,7 +314,7 @@ export class CollabRelayClient {
         view.dispatch({
           effects: collabCompartment.reconfigure([]),
         });
-      } catch (e) {
+      } catch (_e) {
         // view might already be destroyed
       }
     }

@@ -34,7 +34,7 @@ const desktopOnlyPluginIds = [
 ];
 
 function getPluginIdFromPath(path) {
-  const match = String(path).match(/^\.obsidian\/plugins\/([^\/]+)/);
+  const match = String(path).match(/^\.obsidian\/plugins\/([^/]+)/);
   return match ? match[1].toLowerCase() : null;
 }
 
