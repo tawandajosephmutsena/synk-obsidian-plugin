@@ -224,8 +224,9 @@ export class ConflictResolverModal extends Modal {
 
       // 3. Trigger immediate sync
       await this.plugin.syncEngine.sync();
-    } catch (err: any) {
-      new Notice(`Error reconciling conflict: ${err.message || err}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      new Notice(`Error reconciling conflict: ${msg}`);
     }
   }
 

@@ -49,7 +49,7 @@ export function isOriginSecure(serverUrl: string): boolean {
 /**
  * Parses and validates pairing parameters from an obsidian://synkk-pair URL or dictionary.
  */
-export function validatePairingParams(params: Record<string, string>): ValidationResult {
+export function validatePairingParams(params: Record<string, string | undefined>): ValidationResult {
   const server = params.server?.trim();
   const session = params.session?.trim();
   const vault = params.vault?.trim();
@@ -110,10 +110,22 @@ export function getDevicePlatformInfo(
   return { platform: 'linux', deviceName: 'Desktop (Obsidian)' };
 }
 
+import type SynkkPlugin from './main';
+import type { BroadcastingConfig } from './types';
+
+interface PairingResult {
+  server_url: string;
+  plain_token: string;
+  vault_slug?: string;
+  broadcasting?: BroadcastingConfig;
+  team_slug?: string;
+  access_scope?: string;
+}
+
 /**
  * Handles incoming obsidian://synkk-pair protocol events.
  */
-export async function handlePairingProtocol(plugin: any, params: Record<string, string>): Promise<void> {
+export async function handlePairingProtocol(plugin: SynkkPlugin, params: Record<string, string | undefined>): Promise<void> {
   const validation = validatePairingParams(params);
   const { Notice: ObsNotice, Platform } = await import('obsidian');
 
@@ -134,12 +146,13 @@ export async function handlePairingProtocol(plugin: any, params: Record<string, 
 
   try {
     const { SynkkApiClient } = await import('./apiClient');
-    const result = await SynkkApiClient.exchangePairing(
+    const rawResult = await SynkkApiClient.exchangePairing(
       validation.serverUrl!,
       validation.sessionId!,
       platformInfo.deviceName,
       platformInfo.platform
     );
+    const result = rawResult as unknown as PairingResult;
 
     // Save newly issued scoped token and server configuration
     plugin.settings.serverUrl = result.server_url;
@@ -147,8 +160,8 @@ export async function handlePairingProtocol(plugin: any, params: Record<string, 
     if (result.vault_slug) {
       plugin.settings.selectedVaultSlug = result.vault_slug;
     }
-    if ((result as any).broadcasting) {
-      plugin.settings.broadcasting = (result as any).broadcasting;
+    if (result.broadcasting) {
+      plugin.settings.broadcasting = result.broadcasting;
     }
     await plugin.saveSettings();
     plugin.apiClient.updateConfig(result.server_url, result.plain_token);
@@ -169,18 +182,21 @@ export async function handlePairingProtocol(plugin: any, params: Record<string, 
         9000
       );
     } catch {
-      new ObsNotice(`⚡ Synkk paired! Linked to team ${result.team_slug}.`, 6000);
+      new ObsNotice(`⚡ Synkk paired! Linked to team ${result.team_slug || 'workspace'}.`, 6000);
     }
 
     // Trigger initial sync
     if (plugin.syncEngine) {
       plugin.syncEngine.sync();
     }
-  } catch (err: any) {
-    if (err.status === 410 || err.isExpiredOrConsumed) {
+  } catch (err: unknown) {
+    const status = err && typeof err === 'object' && 'status' in err ? (err as { status: number }).status : 0;
+    const isExpired = err && typeof err === 'object' && 'isExpiredOrConsumed' in err ? Boolean((err as { isExpiredOrConsumed: boolean }).isExpiredOrConsumed) : false;
+    const message = err instanceof Error ? err.message : String(err);
+    if (status === 410 || isExpired) {
       new ObsNotice('Synkk: Pairing session has expired or was already consumed. Please generate a new QR code.', 8000);
     } else {
-      new ObsNotice(`Synkk Pairing Failed: ${err.message}`, 8000);
+      new ObsNotice(`Synkk Pairing Failed: ${message}`, 8000);
     }
   }
 }

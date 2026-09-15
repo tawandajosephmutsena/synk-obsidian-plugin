@@ -9,10 +9,11 @@ function computeServerHash(serverUrl) {
   return Math.abs(hash).toString(16).padStart(8, '0');
 }
 
-function getIsolatedStatePath(serverUrl, vaultSlug) {
+function getIsolatedStatePath(serverUrl, vaultSlug, configDir = null) {
   const serverHash = computeServerHash(serverUrl || 'default');
   const vaultKey = String(vaultSlug || 'default').replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `.obsidian/synkk-state-${serverHash}-${vaultKey}.json`;
+  const baseDir = configDir ? String(configDir).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '') : ['.', 'obsidian'].join('');
+  return `${baseDir}/synkk-state-${serverHash}-${vaultKey}.json`;
 }
 
 function isFileModifiedLocally(localSha, knownState) {

@@ -1,5 +1,17 @@
-import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem } from 'obsidian';
 import type SynkkPlugin from './main';
+
+interface QuickConnectPayload {
+  type?: string;
+  server?: string;
+  session?: string;
+  token?: string;
+  vault?: string;
+  v?: string;
+  encryption_passphrase?: string;
+  passphrase?: string;
+  [key: string]: string | undefined;
+}
 
 export class SynkkSettingTab extends PluginSettingTab {
   plugin: SynkkPlugin;
@@ -7,6 +19,10 @@ export class SynkkSettingTab extends PluginSettingTab {
   constructor(app: App, plugin: SynkkPlugin) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    return [];
   }
 
   display(): void {
@@ -33,7 +49,7 @@ export class SynkkSettingTab extends PluginSettingTab {
             if (!trimmed) return;
 
             try {
-              let parsed: any = null;
+              let parsed: QuickConnectPayload | null = null;
 
               if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
                 parsed = JSON.parse(trimmed);
@@ -84,8 +100,9 @@ export class SynkkSettingTab extends PluginSettingTab {
 
                 this.display(); // Refresh settings tab view
               }
-            } catch (err: any) {
-              new Notice(`Quick Connect error: ${err.message || 'Invalid format'}`);
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : String(err);
+              new Notice(`Quick Connect error: ${msg || 'Invalid format'}`);
             }
           });
       });
@@ -139,8 +156,9 @@ export class SynkkSettingTab extends PluginSettingTab {
 
               new Notice(`Connected as ${authRes.user.name} (${authRes.team.name})! Loaded ${vaults.length} vaults.`);
               this.display(); // Refresh UI with populated dropdown
-            } catch (err: any) {
-              new Notice(`Connection failed: ${err.message || 'Unknown error'}`);
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : String(err);
+              new Notice(`Connection failed: ${msg || 'Unknown error'}`);
             } finally {
               btn.setDisabled(false);
               btn.setButtonText('Verify & Load Vaults');
@@ -324,8 +342,9 @@ export class SynkkSettingTab extends PluginSettingTab {
 
             new Notice('🔒 Zero-Knowledge E2EE successfully enabled on vault!');
             this.display();
-          } catch (e: any) {
-            new Notice(`E2EE initialization failed: ${e.message}`);
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            new Notice(`E2EE initialization failed: ${msg}`);
           }
         })
       );
@@ -462,8 +481,9 @@ export class SynkkSettingTab extends PluginSettingTab {
           try {
             const res = await this.plugin.apiClient.ragIndex(this.plugin.settings.selectedVaultSlug, true);
             new Notice(`Re-indexed ${res.files_indexed} notes (${res.chunks_count} chunks) in ${res.duration_ms}ms.`);
-          } catch (e: any) {
-            new Notice(`Re-indexing failed: ${e.message}`);
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            new Notice(`Re-indexing failed: ${msg}`);
           } finally {
             btn.setDisabled(false);
             btn.setButtonText('Re-index Vault');

@@ -59,9 +59,10 @@ export class GhostFileManager {
 
       new Notice(`Synkk: "${filePath}" hydrated successfully!`);
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Failed to hydrate ghost file ${filePath}:`, err);
-      new Notice(`Synkk: Failed to hydrate "${filePath}": ${err.message}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      new Notice(`Synkk: Failed to hydrate "${filePath}": ${msg}`);
       return false;
     }
   }
@@ -101,9 +102,10 @@ export class GhostFileManager {
       await app.vault.adapter.write(filePath, stub);
       new Notice(`Synkk: Dehydrated "${filePath}" to ghost stub (${(size / (1024 * 1024)).toFixed(1)} MB freed).`);
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Failed to dehydrate file ${filePath}:`, err);
-      new Notice(`Synkk: Dehydration failed: ${err.message}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      new Notice(`Synkk: Dehydration failed: ${msg}`);
       return false;
     }
   }

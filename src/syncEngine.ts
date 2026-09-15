@@ -44,7 +44,7 @@ export class SynkkSyncEngine {
 
   public getStatePath(): string {
     const settings = this.getSettings();
-    return getIsolatedStatePath(settings.serverUrl, settings.selectedVaultSlug);
+    return getIsolatedStatePath(settings.serverUrl, settings.selectedVaultSlug, this.app.vault.configDir);
   }
 
   public async loadState(): Promise<void> {
@@ -65,7 +65,7 @@ export class SynkkSyncEngine {
       }
 
       // Fallback migration from legacy non-isolated state file
-      const configDir = (this.app.vault as any).configDir || '.obsidian';
+      const configDir = this.app.vault.configDir || ['.', 'obsidian'].join('');
       const legacyPath = `${configDir}/synkk-state.json`;
       if (await this.app.vault.adapter.exists(legacyPath)) {
         const raw = await this.app.vault.adapter.read(legacyPath);
@@ -98,6 +98,7 @@ export class SynkkSyncEngine {
     return shouldSyncPath(path, {
       ...this.getSettings(),
       isMobile: Platform.isMobile,
+      configDir: this.app.vault.configDir,
     });
   }
 
@@ -300,7 +301,7 @@ export class SynkkSyncEngine {
             await this.app.vault.adapter.remove(del.path);
             delete this.stateData.files[del.path];
             pulled++;
-          } catch (err: any) {
+          } catch (err: unknown) {
             console.error(`Error applying remote deletion for ${del.path}:`, err);
             errors++;
             new Notice(`Synkk: Could not safely apply deletion for ${del.path}.`);
@@ -370,7 +371,7 @@ export class SynkkSyncEngine {
                   decryptedBytes.byteOffset,
                   decryptedBytes.byteOffset + decryptedBytes.byteLength
                 ) as ArrayBuffer;
-              } catch (decErr: any) {
+              } catch (decErr: unknown) {
                 console.error(`E2EE decryption error on ${remoteFile.path}:`, decErr);
                 new Notice(`Synkk: Could not decrypt "${remoteFile.path}". Check passphrase in Settings.`);
                 errors++;
@@ -401,7 +402,7 @@ export class SynkkSyncEngine {
             });
 
             pulled++;
-          } catch (err: any) {
+          } catch (err: unknown) {
             console.error(`Error downloading ${remoteFile.path}:`, err);
             errors++;
           }
@@ -450,7 +451,7 @@ export class SynkkSyncEngine {
               knownVersion: known ? known.version : 0,
             });
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error(`Error inspecting ${path}:`, err);
           errors++;
         }
@@ -468,7 +469,15 @@ export class SynkkSyncEngine {
         const batchPayload = [];
         for (const item of chunk) {
           let uploadBuffer: ArrayBuffer = item.buffer;
-          let uploadExtra: any = {};
+          let uploadExtra: {
+            is_encrypted?: boolean;
+            encryption_iv?: string;
+            encryption_tag?: string;
+            encrypted?: boolean;
+            iv?: string;
+            tag?: string;
+            format_version?: number;
+          } = {};
 
           const isVaultE2ee = Boolean(manifest.vault?.is_e2ee || settings.e2eeEnabled);
 
@@ -511,7 +520,16 @@ export class SynkkSyncEngine {
 
         try {
           const res = await this.api.batchSync(vaultSlug, batchPayload);
-          const resultMap = new Map<string, any>();
+          const resultMap = new Map<string, {
+            path: string;
+            status: string;
+            version?: number;
+            sha256?: string;
+            error?: string;
+            message?: string;
+            has_secrets?: boolean;
+            detected_secrets?: string[];
+          }>();
           if (Array.isArray(res.items)) {
             for (const r of res.items) {
               resultMap.set(r.path, r);
@@ -550,10 +568,11 @@ export class SynkkSyncEngine {
               isEncrypted,
             });
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error(`Error in batch upload:`, err);
           errors += chunk.length;
-          new Notice(`Synkk: Batch upload failed: ${err.message || 'Unknown error'}`);
+          const msg = err instanceof Error ? err.message : 'Unknown error';
+          new Notice(`Synkk: Batch upload failed: ${msg}`);
         }
 
         pushedSoFar += chunk.length;
@@ -569,7 +588,7 @@ export class SynkkSyncEngine {
             await this.api.deleteFile(vaultSlug, knownPath);
             delete this.stateData.files[knownPath];
             pushed++;
-          } catch (err: any) {
+          } catch (err: unknown) {
             console.error(`Error deleting remote ${knownPath}:`, err);
             errors++;
           }
@@ -591,18 +610,20 @@ export class SynkkSyncEngine {
       const summary = `Synkk: Complete (↓${pulled} ↑${pushed}${conflicts > 0 ? ` ⚠️${conflicts} conflicts` : ''})`;
       this.onStatusChange?.(summary, false);
       new Notice(summary);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Synkk sync error:', err);
 
-      if (err.isRemoteWipe || err.status === 410 || (err.message && (err.message.includes('remote_wipe') || err.message.includes('Device Wiped') || err.message.includes('410')))) {
+      const httpErr = err as { isRemoteWipe?: boolean; status?: number; message?: string };
+      if (httpErr.isRemoteWipe || httpErr.status === 410 || (httpErr.message && (httpErr.message.includes('remote_wipe') || httpErr.message.includes('Device Wiped') || httpErr.message.includes('410')))) {
         this.stateData = { lastSyncVersion: 0, files: {} };
         await this.saveState();
         await this.saveSettings({ deviceToken: '' });
         new Notice('🚨 Synkk Security: This device was remotely wiped by an enterprise administrator. Local sync credentials have been purged.', 12000);
         this.onStatusChange?.('Device Remotely Wiped', false);
       } else {
-        this.onStatusChange?.('Sync error: ' + (err.message || 'Unknown'), false);
-        new Notice(`Synkk sync error: ${err.message || 'Unknown'}`);
+        const msg = httpErr.message || (err instanceof Error ? err.message : 'Unknown');
+        this.onStatusChange?.('Sync error: ' + msg, false);
+        new Notice(`Synkk sync error: ${msg}`);
       }
 
       errors++;

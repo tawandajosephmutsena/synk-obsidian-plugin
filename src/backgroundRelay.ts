@@ -17,7 +17,7 @@ export class BackgroundSyncRelay {
   private getVaultSlug: () => string;
   private onTriggerSync: () => Promise<void>;
   private isRunning: boolean = false;
-  private timerId: any = null;
+  private timerId: number | null = null;
   private lastKnownVersion: number = 0;
 
   constructor(

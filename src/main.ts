@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile } from 'obsidian';
+import { addIcon, Notice, Plugin, TFile } from 'obsidian';
 import { SynkkApiClient } from './apiClient';
 import { BackgroundSyncRelay } from './backgroundRelay';
 import { createCollabExtension } from './collabExtension';
@@ -6,13 +6,14 @@ import { CollabRelayClient } from './collabRelay';
 import { ConflictResolverModal } from './conflictResolver';
 import { SynkkEchoManager } from './echoManager';
 import { GhostFileManager } from './ghostFiles';
+import { SYNKK_OCTOPUS_ICON } from './icons';
 import { VaultCopilotModal } from './ragModal';
 import { SynkkSettingTab } from './settings';
 import { SynkkSyncEngine } from './syncEngine';
 import { DEFAULT_SETTINGS, SynkkSettings } from './types';
 
 export default class SynkkPlugin extends Plugin {
-  settings: SynkkSettings;
+  declare settings: SynkkSettings;
   apiClient: SynkkApiClient;
   syncEngine: SynkkSyncEngine;
   collabRelay: CollabRelayClient;
@@ -23,6 +24,7 @@ export default class SynkkPlugin extends Plugin {
   private debouncedSyncTimeout: number | null = null;
 
   async onload() {
+    addIcon('synkk-octopus', SYNKK_OCTOPUS_ICON);
     await this.loadSettings();
 
     // Initialize API Client & Sync Engine
@@ -103,7 +105,7 @@ export default class SynkkPlugin extends Plugin {
     });
 
     // Left Ribbon Icon (Sync Now)
-    this.addRibbonIcon('sync', 'Synkk: Sync Now', async () => {
+    this.addRibbonIcon('synkk-octopus', 'Synkk: Sync Now', async () => {
       await this.syncEngine.sync();
     });
 
@@ -229,8 +231,9 @@ export default class SynkkPlugin extends Plugin {
         try {
           const status = await this.apiClient.getTransportStatus(this.settings.selectedVaultSlug);
           new Notice(`Synkk Transport: Healthy (v${status.latest_version}, ${status.active_collaborators} online, E2EE: ${status.is_e2ee ? 'Active' : 'Off'})`, 6000);
-        } catch (e: any) {
-          new Notice(`Synkk Transport Error: ${e.message}`);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          new Notice(`Synkk Transport Error: ${msg}`);
         }
       },
     });
@@ -261,8 +264,9 @@ export default class SynkkPlugin extends Plugin {
         try {
           const res = await this.apiClient.ragIndex(this.settings.selectedVaultSlug, true);
           new Notice(`Synkk: Re-indexed ${res.files_indexed} notes (${res.chunks_count} chunks) in ${res.duration_ms}ms.`);
-        } catch (e: any) {
-          new Notice(`Synkk: Re-indexing failed: ${e.message}`);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          new Notice(`Synkk: Re-indexing failed: ${msg}`);
         }
       },
     });

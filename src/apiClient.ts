@@ -1,5 +1,32 @@
-import { Platform, requestUrl, RequestUrlParam } from 'obsidian';
+import { Platform, requestUrl, RequestUrlParam, RequestUrlResponse } from 'obsidian';
 import { ManifestResponse, RagQueryResponse, RagSearchResult, RagStatusResponse, RemoteVault, UploadResponse, VerifyAuthResponse } from './types';
+
+export class SynkkHttpError extends Error {
+  status: number;
+  isProtocolUpgradeRequired?: boolean;
+  isRemoteWipe?: boolean;
+  isExpiredOrConsumed?: boolean;
+  validationErrors?: unknown;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'SynkkHttpError';
+    this.status = status;
+    Object.setPrototypeOf(this, SynkkHttpError.prototype);
+  }
+}
+
+export interface PairingExchangeResult {
+  status: string;
+  plain_token: string;
+  device_id: number;
+  server_url: string;
+  team_slug: string;
+  vault_slug?: string;
+  access_scope?: string;
+  user?: { id: number; name: string; email: string };
+  team?: { id: number; name: string; slug: string };
+}
 
 export class SynkkApiClient {
   private serverUrl: string;
@@ -33,38 +60,34 @@ export class SynkkApiClient {
     };
   }
 
-  private async request(params: RequestUrlParam): Promise<any> {
+  private async request(params: RequestUrlParam): Promise<RequestUrlResponse> {
     const res = await requestUrl({
       ...params,
       throw: false,
     });
 
     if (res.status === 426) {
-      const data = res.json;
+      const data = res.json as { message?: string } | null;
       const message = data?.message || 'Synkk Protocol Upgrade Required: Please update your Synkk plugin to protocol version 2.';
-      const err: any = new Error(message);
-      err.status = 426;
+      const err = new SynkkHttpError(message, 426);
       err.isProtocolUpgradeRequired = true;
       throw err;
     }
 
     if (res.status === 410) {
-      const err: any = new Error('Synkk Security: This device token was remotely wiped by an enterprise administrator.');
-      err.status = 410;
+      const err = new SynkkHttpError('Synkk Security: This device token was remotely wiped by an enterprise administrator.', 410);
       err.isRemoteWipe = true;
       throw err;
     }
 
     if (res.status === 401) {
-      const data = res.json;
+      const data = res.json as { message?: string } | null;
       const message = data?.message || 'Authentication failed: Invalid or revoked device token.';
-      const err: any = new Error(message);
-      err.status = 401;
-      throw err;
+      throw new SynkkHttpError(message, 401);
     }
 
     if (res.status === 422) {
-      const data = res.json;
+      const data = res.json as { message?: string; errors?: Record<string, string[]> } | null;
       let firstError = data?.message;
       if (data?.errors && typeof data.errors === 'object') {
         const errorKeys = Object.keys(data.errors);
@@ -73,18 +96,15 @@ export class SynkkApiClient {
         }
       }
       const message = firstError || 'Validation error (HTTP 422): Malformed request payload or file path.';
-      const err: any = new Error(message);
-      err.status = 422;
+      const err = new SynkkHttpError(message, 422);
       err.validationErrors = data?.errors;
       throw err;
     }
 
     if (res.status === 403) {
-      const data = res.json;
+      const data = res.json as { message?: string } | null;
       const message = data?.message || 'Permission denied: Action or IP address not allowed.';
-      const err: any = new Error(message);
-      err.status = 403;
-      throw err;
+      throw new SynkkHttpError(message, 403);
     }
 
     return res;
@@ -189,7 +209,7 @@ export class SynkkApiClient {
     }
   ): Promise<UploadResponse> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/upload`;
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       path,
       content_base64: contentBase64,
       base_version: baseVersion,
@@ -317,22 +337,13 @@ export class SynkkApiClient {
     return res.json;
   }
 
+
   public static async exchangePairing(
     serverUrl: string,
     sessionId: string,
     deviceName: string,
     platform: string = 'ios'
-  ): Promise<{
-    status: string;
-    plain_token: string;
-    device_id: number;
-    server_url: string;
-    team_slug: string;
-    vault_slug?: string;
-    access_scope?: string;
-    user?: { id: number; name: string; email: string };
-    team?: { id: number; name: string; slug: string };
-  }> {
+  ): Promise<PairingExchangeResult> {
     const cleanServerUrl = serverUrl.replace(/\/+$/, '');
     const url = `${cleanServerUrl}/pairing/exchange`;
     const res = await requestUrl({
@@ -352,23 +363,20 @@ export class SynkkApiClient {
     });
 
     if (res.status === 410) {
-      const data = res.json;
+      const data = res.json as { message?: string; error?: string } | null;
       const message = data?.message || data?.error || 'Pairing session has expired or has already been used. Please generate a new QR code.';
-      const err: any = new Error(message);
-      err.status = 410;
+      const err = new SynkkHttpError(message, 410);
       err.isExpiredOrConsumed = true;
       throw err;
     }
 
     if (res.status !== 200) {
-      const data = res.json;
+      const data = res.json as { message?: string; error?: string } | null;
       const message = data?.message || data?.error || res.text || `Pairing exchange failed (HTTP ${res.status})`;
-      const err: any = new Error(message);
-      err.status = res.status;
-      throw err;
+      throw new SynkkHttpError(message, res.status);
     }
 
-    return res.json;
+    return res.json as PairingExchangeResult;
   }
 
   public async deleteFile(vaultSlug: string, path: string): Promise<void> {
@@ -402,7 +410,7 @@ export class SynkkApiClient {
       original_size?: number;
       mime_type?: string;
     }>
-  ): Promise<{ status: string; latest_version: number; summary: any; items: any[] }> {
+  ): Promise<{ status: string; latest_version: number; summary: { uploaded: number; deleted: number; failed: number }; items: Array<{ path: string; status: string; version?: number; sha256?: string; error?: string }> }> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/batch-sync`;
     const normalizedItems = items.map(item => {
       if (item.is_encrypted) {
@@ -431,7 +439,7 @@ export class SynkkApiClient {
       throw new Error(`Batch sync failed: HTTP ${res.status} - ${res.text}`);
     }
 
-    return res.json;
+    return res.json as { status: string; latest_version: number; summary: { uploaded: number; deleted: number; failed: number }; items: Array<{ path: string; status: string; version?: number; sha256?: string; error?: string }> };
   }
 
   public async ragQuery(

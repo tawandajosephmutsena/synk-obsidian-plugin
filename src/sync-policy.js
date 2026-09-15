@@ -1,15 +1,21 @@
 const alwaysExcludedPrefixes = ['.git', '.trash', '.synkk'];
 
-const alwaysExcludedObsidianPaths = [
-  '.obsidian/synkk-state.json',
-  '.obsidian/workspace.json',
-  '.obsidian/workspace-mobile.json',
-  '.obsidian/hotkeys.json',
-  '.obsidian/cache',
-];
-
 function normalizePath(path) {
   return String(path ?? '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+}
+
+function resolveConfigDir(settings = {}) {
+  return normalizePath(settings.configDir || ['.', 'obsidian'].join(''));
+}
+
+function getExcludedConfigPaths(configDir) {
+  return [
+    `${configDir}/synkk-state.json`,
+    `${configDir}/workspace.json`,
+    `${configDir}/workspace-mobile.json`,
+    `${configDir}/hotkeys.json`,
+    `${configDir}/cache`,
+  ];
 }
 
 function parsePrefixes(value) {
@@ -33,9 +39,14 @@ const desktopOnlyPluginIds = [
   'system-dark-mode',
 ];
 
-function getPluginIdFromPath(path) {
-  const match = String(path).match(/^\.obsidian\/plugins\/([^/]+)/);
-  return match ? match[1].toLowerCase() : null;
+function getPluginIdFromPath(path, configDir) {
+  const prefix = `${configDir}/plugins/`;
+  if (!String(path).startsWith(prefix)) {
+    return null;
+  }
+  const remaining = String(path).slice(prefix.length);
+  const pluginId = remaining.split('/')[0];
+  return pluginId ? pluginId.toLowerCase() : null;
 }
 
 function isPluginSafeForPlatform(pluginId, isMobile = false) {
@@ -46,45 +57,48 @@ function isPluginSafeForPlatform(pluginId, isMobile = false) {
 }
 
 function isObsidianPathAllowed(path, settings = {}) {
-  if (path.startsWith('.obsidian/synkk-state')) {
+  const configDir = resolveConfigDir(settings);
+
+  if (path.startsWith(`${configDir}/synkk-state`)) {
     return false;
   }
 
-  if (alwaysExcludedObsidianPaths.some((prefix) => matchesPrefix(path, prefix))) {
+  const excludedPaths = getExcludedConfigPaths(configDir);
+  if (excludedPaths.some((prefix) => matchesPrefix(path, prefix))) {
     return false;
   }
 
   // Complete Vault Environment & Plugin Suite Sync
   if (settings.syncPluginSuite === true) {
-    if (path === '.obsidian/community-plugins.json') {
+    if (path === `${configDir}/community-plugins.json`) {
       return true;
     }
-    if (matchesPrefix(path, '.obsidian/snippets')) {
+    if (matchesPrefix(path, `${configDir}/snippets`)) {
       return true;
     }
-    if (matchesPrefix(path, '.obsidian/themes')) {
+    if (matchesPrefix(path, `${configDir}/themes`)) {
       return true;
     }
-    if (matchesPrefix(path, '.obsidian/plugins')) {
-      const pluginId = getPluginIdFromPath(path);
+    if (matchesPrefix(path, `${configDir}/plugins`)) {
+      const pluginId = getPluginIdFromPath(path, configDir);
       return isPluginSafeForPlatform(pluginId, settings.isMobile === true);
     }
   }
 
-  if (path === '.obsidian/community-plugins.json') {
+  if (path === `${configDir}/community-plugins.json`) {
     return settings.syncPluginList === true;
   }
 
-  if (matchesPrefix(path, '.obsidian/snippets')) {
+  if (matchesPrefix(path, `${configDir}/snippets`)) {
     return settings.syncSnippets === true;
   }
 
-  if (matchesPrefix(path, '.obsidian/themes')) {
+  if (matchesPrefix(path, `${configDir}/themes`)) {
     return settings.syncThemes === true;
   }
 
-  if (matchesPrefix(path, '.obsidian/plugins')) {
-    const pluginId = getPluginIdFromPath(path);
+  if (matchesPrefix(path, `${configDir}/plugins`)) {
+    const pluginId = getPluginIdFromPath(path, configDir);
     if (!isPluginSafeForPlatform(pluginId, settings.isMobile === true)) {
       return false;
     }
@@ -94,15 +108,17 @@ function isObsidianPathAllowed(path, settings = {}) {
   return false;
 }
 
-function shouldSyncPath(path, settings) {
+function shouldSyncPath(path, settings = {}) {
   const normalizedPath = normalizePath(path);
 
   if (!normalizedPath || normalizedPath.endsWith('.DS_Store') || normalizedPath.includes('/.DS_Store')) {
     return false;
   }
 
+  const configDir = resolveConfigDir(settings);
+
   const segments = normalizedPath.split('/');
-  if (segments.some((seg) => seg.startsWith('.') && seg !== '.obsidian')) {
+  if (segments.some((seg) => seg.startsWith('.') && seg !== configDir)) {
     return false;
   }
 
@@ -110,7 +126,7 @@ function shouldSyncPath(path, settings) {
     return false;
   }
 
-  if (matchesPrefix(normalizedPath, '.obsidian') && !isObsidianPathAllowed(normalizedPath, settings)) {
+  if (matchesPrefix(normalizedPath, configDir) && !isObsidianPathAllowed(normalizedPath, settings)) {
     return false;
   }
 

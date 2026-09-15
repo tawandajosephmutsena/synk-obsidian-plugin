@@ -92,7 +92,7 @@ export class VaultCopilotModal extends Modal {
     this.responseContainer.empty();
 
     const loadingDiv = this.responseContainer.createDiv({ cls: 'synkk-copilot-loading' });
-    loadingDiv.createEl('div', {
+    loadingDiv.createDiv({
       text: '🧠 Traversing [[wikilinks]] and reasoning over note embeddings...',
     });
 
@@ -116,13 +116,13 @@ export class VaultCopilotModal extends Modal {
 
     // Model & Timing info
     const metaBar = this.responseContainer.createDiv({ cls: 'synkk-copilot-metabar' });
-    metaBar.createEl('span', { text: `Model: ${res.model}` });
-    metaBar.createEl('span', { text: `${res.duration_ms}ms` });
+    metaBar.createSpan({ text: `Model: ${res.model}` });
+    metaBar.createSpan({ text: `${res.duration_ms}ms` });
 
     // Graph Nodes
     if (res.graph_nodes && res.graph_nodes.length > 0) {
       const graphSection = this.responseContainer.createDiv({ cls: 'synkk-copilot-graph-section' });
-      graphSection.createEl('div', {
+      graphSection.createDiv({
         text: '🕸️ Retrieved via [[wikilink]] graph traversal:',
         cls: 'synkk-copilot-graph-label',
       });
@@ -148,7 +148,7 @@ export class VaultCopilotModal extends Modal {
     // Citations
     if (res.citations && res.citations.length > 0) {
       const citSection = this.responseContainer.createDiv({ cls: 'synkk-copilot-cit-section' });
-      citSection.createEl('div', {
+      citSection.createDiv({
         text: 'Verified Citations:',
         cls: 'synkk-copilot-cit-header',
       });
@@ -157,15 +157,15 @@ export class VaultCopilotModal extends Modal {
         const citCard = citSection.createDiv({ cls: 'synkk-copilot-cit-card' });
 
         const titleRow = citCard.createDiv({ cls: 'synkk-copilot-cit-title' });
-        titleRow.createEl('span', {
+        titleRow.createSpan({
           text: `${cit.note}${cit.heading ? ' #' + cit.heading : ''}`,
         });
-        titleRow.createEl('span', {
+        titleRow.createSpan({
           text: `${cit.score_pct}%`,
           cls: 'synkk-copilot-cit-score',
         });
 
-        citCard.createEl('div', {
+        citCard.createDiv({
           text: `"${cit.excerpt}"`,
           cls: 'synkk-copilot-cit-excerpt',
         });

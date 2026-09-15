@@ -1,4 +1,4 @@
-import Echo from 'laravel-echo';
+import Echo, { Broadcaster } from 'laravel-echo';
 import Pusher from 'pusher-js';
 import type SynkkPlugin from './main';
 import { BroadcastingConfig } from './types';
@@ -34,30 +34,28 @@ export function resolveEchoConfig(settings: {
   let scheme = bConfig?.scheme;
   let key = bConfig?.key || 'synkk-reverb-key';
 
-  if (!host || !port || !scheme) {
+  if (!host) {
     try {
       const parsed = new URL(baseUrl);
-      host = host || parsed.hostname;
-      scheme = scheme || (parsed.protocol === 'https:' ? 'https' : 'http');
+      host = parsed.hostname;
+      if (!scheme) scheme = parsed.protocol.replace(':', '');
       if (!port) {
-        port = parsed.port ? parseInt(parsed.port, 10) : (scheme === 'https' ? 443 : 80);
+        port = parsed.port ? parseInt(parsed.port, 10) : scheme === 'https' ? 443 : 80;
       }
     } catch {
-      host = host || 'localhost';
-      scheme = scheme || 'https';
-      port = port || 443;
+      return null;
     }
   }
 
-  const forceTLS = scheme === 'https';
-  const signature = `${key}@${host}:${port}:${scheme}:${token}`;
+  const forceTLS = scheme === 'https' || port === 443;
+  const signature = `${key}@${host}:${port}:${scheme || 'https'}:${token}`;
 
   return {
     broadcaster: 'reverb',
     key,
     wsHost: host,
-    wsPort: port,
-    wssPort: port,
+    wsPort: port || (forceTLS ? 443 : 80),
+    wssPort: port || (forceTLS ? 443 : 80),
     forceTLS,
     enabledTransports: ['ws', 'wss'],
     authEndpoint: `${baseUrl}/broadcasting/auth`,
@@ -73,16 +71,16 @@ export function resolveEchoConfig(settings: {
 }
 
 export class SynkkEchoManager {
-  private echo: Echo<any> | null = null;
+  private echo: Echo<'reverb'> | null = null;
   private currentSignature: string = '';
 
   constructor(private plugin: SynkkPlugin) {}
 
-  public getEcho(): Echo<any> | null {
+  public getEcho(): Echo<'reverb'> | null {
     return this.echo;
   }
 
-  public async connect(): Promise<Echo<any> | null> {
+  public async connect(): Promise<Echo<'reverb'> | null> {
     const config = resolveEchoConfig(this.plugin.settings);
     if (!config) {
       this.disconnect();
@@ -97,9 +95,10 @@ export class SynkkEchoManager {
     this.currentSignature = config.signature;
 
     try {
-      (window as any).Pusher = Pusher;
+      (window as unknown as { Pusher?: typeof Pusher }).Pusher = Pusher;
 
-      this.echo = new Echo(config as any);
+      type ReverbOptions = Broadcaster['reverb']['options'] & { broadcaster: 'reverb' };
+      this.echo = new Echo<'reverb'>(config as unknown as ReverbOptions);
       return this.echo;
     } catch (err) {
       console.error('Synkk: Failed to initialize Reverb Echo connection:', err);

@@ -29,7 +29,7 @@ export class CollabRelayClient {
   undoManager: Y.UndoManager | null = null;
   awareness: SynkkAwareness | null = null;
   provider: SynkkYjsProvider | null = null;
-  snapshotTimer: any = null;
+  snapshotTimer: number | null = null;
   snapshotDebounceMs = 3000;
   isDirty = false;
 
@@ -181,7 +181,7 @@ export class CollabRelayClient {
     }
 
     // Setup transport for SynkkYjsProvider
-    const doAppend = async (payload: any) => {
+    const doAppend = async (payload: Record<string, unknown>) => {
       const resp = await requestUrl({
         url: `${baseUrl}/vaults/${vaultSlug}/collab/append`,
         method: 'POST',
@@ -216,10 +216,15 @@ export class CollabRelayClient {
       },
       sendUpdate: doAppend,
       appendUpdate: doAppend,
-      checkpoint: async (payload: any) => {
+      checkpoint: async (payload: {
+        checkpoint_snapshot?: string;
+        is_encrypted?: boolean;
+        encryption_iv?: string;
+        encryption_tag?: string;
+      }) => {
         try {
-          const clientUpdateId = typeof crypto !== 'undefined' && (crypto as any).randomUUID
-            ? (crypto as any).randomUUID()
+          const clientUpdateId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? (crypto as Crypto).randomUUID()
             : `ckpt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
           const resp = await requestUrl({
             url: `${baseUrl}/vaults/${vaultSlug}/collab/checkpoint`,
@@ -248,7 +253,7 @@ export class CollabRelayClient {
       },
     };
 
-    const cryptoKey = (this.plugin.syncEngine as any)?.e2eeEngine?.getKey?.() || null;
+    const cryptoKey = this.plugin.syncEngine?.e2eeEngine?.getKey() || null;
     let echoInstance = null;
     if (this.plugin.echoManager) {
       echoInstance = await this.plugin.echoManager.connect();
@@ -260,7 +265,7 @@ export class CollabRelayClient {
       documentId: this.documentId,
       path,
       cryptoKey,
-      e2eeEngine: (this.plugin.syncEngine as any)?.e2eeEngine,
+      e2eeEngine: this.plugin.syncEngine?.e2eeEngine,
       transport,
       echo: echoInstance,
       awareness: this.awareness,
