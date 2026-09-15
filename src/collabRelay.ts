@@ -114,9 +114,16 @@ export class CollabRelayClient {
       });
 
       if (res.status === 200 && res.json) {
-        this.documentId = res.json.document_id || null;
-        this.currentClock = res.json.latest_sequence || res.json.clock || 0;
-        this.activePeers = (res.json.peers || []).filter((p: CollabPeer) => p.peer_id !== this.peerId);
+        const data = res.json as {
+          document_id?: number | null;
+          latest_sequence?: number;
+          clock?: number;
+          peers?: CollabPeer[];
+        };
+        this.documentId = typeof data.document_id === 'number' ? data.document_id : null;
+        this.currentClock = data.latest_sequence || data.clock || 0;
+        const peersList = Array.isArray(data.peers) ? data.peers : [];
+        this.activePeers = peersList.filter((p: CollabPeer) => p.peer_id !== this.peerId);
         this.notifyListeners();
       }
     } catch {
@@ -136,14 +143,21 @@ export class CollabRelayClient {
 
     this.awareness.on('change', () => {
       if (!this.awareness) return;
+      interface AwarenessStatePayload {
+        user?: { name?: string; color?: string };
+        cursor?: { line: number; col: number } | null;
+      }
       this.activePeers = Array.from(this.awareness.getStates().entries())
         .filter(([id]) => id !== this.awareness!.clientID)
-        .map(([id, state]: [number, any]) => ({
-          peer_id: String(id),
-          name: state.user?.name || 'Collaborator',
-          color: state.user?.color || '#10B981',
-          cursor: state.cursor || null,
-        }));
+        .map(([id, state]) => {
+          const s = state as AwarenessStatePayload;
+          return {
+            peer_id: String(id),
+            name: s.user?.name || 'Collaborator',
+            color: s.user?.color || '#10B981',
+            cursor: s.cursor || null,
+          };
+        });
       this.notifyListeners();
     });
 
@@ -196,7 +210,7 @@ export class CollabRelayClient {
           ...payload,
         }),
       });
-      return resp.json;
+      return (resp.json || {}) as Record<string, unknown>;
     };
 
     const transport = {
@@ -209,7 +223,7 @@ export class CollabRelayClient {
               Accept: 'application/json',
             },
           });
-          return resp.json;
+          return (resp.json || { updates: [] }) as Array<Record<string, unknown>> | { updates?: Array<Record<string, unknown>> };
         } catch {
           return { updates: [] };
         }
@@ -224,7 +238,7 @@ export class CollabRelayClient {
       }) => {
         try {
           const clientUpdateId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-            ? (crypto as Crypto).randomUUID()
+            ? crypto.randomUUID()
             : `ckpt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
           const resp = await requestUrl({
             url: `${baseUrl}/vaults/${vaultSlug}/collab/checkpoint`,
@@ -245,7 +259,7 @@ export class CollabRelayClient {
               tag: payload.encryption_tag,
             }),
           });
-          return resp.json;
+          return (resp.json || {}) as Record<string, unknown>;
         } catch (e) {
           console.error('Synkk: Checkpoint failed in CollabRelay:', e);
           return null;

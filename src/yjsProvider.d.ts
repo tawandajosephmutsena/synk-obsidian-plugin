@@ -1,12 +1,15 @@
 import * as Y from 'yjs';
-import { Observable } from 'lib0/observable';
 
-export class SynkkAwareness extends Observable<string> {
+export class SynkkAwareness {
   doc: Y.Doc;
   clientID: number;
   states: Map<number, Record<string, unknown>>;
   meta: Map<number, { clock: number; lastUpdated: number }>;
   constructor(doc: Y.Doc);
+  on(name: string, f: (...args: unknown[]) => void): void;
+  once(name: string, f: (...args: unknown[]) => void): void;
+  off(name: string, f: (...args: unknown[]) => void): void;
+  emit(name: string, args: unknown[]): void;
   getLocalState(): Record<string, unknown> | null;
   setLocalState(state: Record<string, unknown> | null): void;
   setLocalStateField(field: string, value: unknown): void;
@@ -15,9 +18,15 @@ export class SynkkAwareness extends Observable<string> {
 }
 
 export interface YjsTransport {
-  fetchUpdates(afterSequence: number): Promise<Array<Record<string, unknown>>>;
-  sendUpdate(update: Record<string, unknown>): Promise<void>;
-  appendUpdate?(update: Record<string, unknown>): Promise<void>;
+  fetchUpdates(afterSequence: number): Promise<{ document_id?: string | number; updates?: Array<Record<string, unknown>> } | Array<Record<string, unknown>> | null | void>;
+  sendUpdate(update: Record<string, unknown>): Promise<unknown>;
+  appendUpdate?(update: Record<string, unknown>): Promise<unknown>;
+  checkpoint?(payload: {
+    checkpoint_snapshot?: string;
+    is_encrypted?: boolean;
+    encryption_iv?: string;
+    encryption_tag?: string;
+  }): Promise<unknown>;
   fetchSnapshot?(): Promise<{ sequence: number; updateBase64: string } | null>;
 }
 

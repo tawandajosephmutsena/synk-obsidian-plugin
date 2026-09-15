@@ -1,5 +1,5 @@
 import { Platform, requestUrl, RequestUrlParam, RequestUrlResponse } from 'obsidian';
-import { ManifestResponse, RagQueryResponse, RagSearchResult, RagStatusResponse, RemoteVault, UploadResponse, VerifyAuthResponse } from './types';
+import { ManifestResponse, RagQueryResponse, RagSearchResult, RagStatusResponse, RemoteVault, TransportStatus, UploadResponse, VerifyAuthResponse } from './types';
 
 export class SynkkHttpError extends Error {
   status: number;
@@ -137,8 +137,8 @@ export class SynkkApiClient {
       throw new Error(`Failed to fetch vaults: HTTP ${res.status}`);
     }
 
-    const data = res.json;
-    return (data.vaults || []) as RemoteVault[];
+    const data = res.json as { vaults?: RemoteVault[] } | null | undefined;
+    return Array.isArray(data?.vaults) ? data.vaults : [];
   }
 
   public async getManifest(vaultSlug: string, sinceVersion: number = 0): Promise<ManifestResponse> {
@@ -247,7 +247,7 @@ export class SynkkApiClient {
     return res.json as UploadResponse;
   }
 
-  public async hydrateFile(vaultSlug: string, path: string): Promise<any> {
+  public async hydrateFile(vaultSlug: string, path: string): Promise<Record<string, unknown>> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/files/hydrate`;
     const res = await this.request({
       url,
@@ -263,10 +263,10 @@ export class SynkkApiClient {
       throw new Error(`Failed to hydrate ${path}: HTTP ${res.status}`);
     }
 
-    return res.json;
+    return (res.json || {}) as Record<string, unknown>;
   }
 
-  public async dehydrateFile(vaultSlug: string, path: string): Promise<any> {
+  public async dehydrateFile(vaultSlug: string, path: string): Promise<Record<string, unknown>> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/files/dehydrate`;
     const res = await this.request({
       url,
@@ -282,10 +282,10 @@ export class SynkkApiClient {
       throw new Error(`Failed to dehydrate ${path}: HTTP ${res.status}`);
     }
 
-    return res.json;
+    return (res.json || {}) as Record<string, unknown>;
   }
 
-  public async enableE2ee(vaultSlug: string, salt: string, testCipher: string): Promise<any> {
+  public async enableE2ee(vaultSlug: string, salt: string, testCipher: string): Promise<Record<string, unknown>> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/e2ee/enable`;
     const res = await this.request({
       url,
@@ -304,7 +304,7 @@ export class SynkkApiClient {
       throw new Error(`Failed to enable E2EE: HTTP ${res.status}`);
     }
 
-    return res.json;
+    return (res.json || {}) as Record<string, unknown>;
   }
 
   public async getE2eeStatus(vaultSlug: string): Promise<{ is_e2ee: boolean; salt: string | null; has_test_cipher: boolean }> {
@@ -319,10 +319,10 @@ export class SynkkApiClient {
       throw new Error(`Failed to get E2EE status: HTTP ${res.status}`);
     }
 
-    return res.json;
+    return res.json as { is_e2ee: boolean; salt: string | null; has_test_cipher: boolean };
   }
 
-  public async getTransportStatus(vaultSlug: string): Promise<any> {
+  public async getTransportStatus(vaultSlug: string): Promise<TransportStatus> {
     const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/transport/status`;
     const res = await this.request({
       url,
@@ -334,7 +334,7 @@ export class SynkkApiClient {
       throw new Error(`Failed to get transport status: HTTP ${res.status}`);
     }
 
-    return res.json;
+    return res.json as TransportStatus;
   }
 
 
@@ -493,7 +493,7 @@ export class SynkkApiClient {
       throw new Error(`RAG search failed: HTTP ${res.status} - ${res.text}`);
     }
 
-    return res.json;
+    return res.json as { status: string; query: string; count: number; results: RagSearchResult[] };
   }
 
   public async ragIndex(
@@ -515,7 +515,7 @@ export class SynkkApiClient {
       throw new Error(`RAG index failed: HTTP ${res.status} - ${res.text}`);
     }
 
-    return res.json;
+    return res.json as { status: string; files_indexed: number; chunks_count: number; duration_ms: number };
   }
 
   public async ragStatus(vaultSlug: string): Promise<RagStatusResponse> {

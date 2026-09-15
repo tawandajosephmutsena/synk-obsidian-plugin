@@ -97,8 +97,7 @@ export class SynkkEchoManager {
     try {
       (window as unknown as { Pusher?: typeof Pusher }).Pusher = Pusher;
 
-      type ReverbOptions = Broadcaster['reverb']['options'] & { broadcaster: 'reverb' };
-      this.echo = new Echo<'reverb'>(config as unknown as ReverbOptions);
+      this.echo = new Echo<'reverb'>(config);
       return this.echo;
     } catch (err) {
       console.error('Synkk: Failed to initialize Reverb Echo connection:', err);

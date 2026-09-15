@@ -158,18 +158,13 @@ export class E2eeVaultEngine {
   }> {
     const enc = new TextEncoder();
     const result = await this.encrypt(enc.encode(text));
-    let base64: string;
-    if (typeof Buffer !== 'undefined') {
-      base64 = Buffer.from(result.ciphertext).toString('base64');
-    } else {
-      let binary = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < result.ciphertext.length; i += chunkSize) {
-        const chunk = result.ciphertext.subarray(i, i + chunkSize);
-        binary += String.fromCharCode.apply(null, Array.from(chunk));
-      }
-      base64 = btoa(binary);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < result.ciphertext.length; i += chunkSize) {
+      const chunk = result.ciphertext.subarray(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
     }
+    const base64 = btoa(binary);
     return {
       ciphertextBase64: base64,
       ivHex: result.ivHex,
@@ -182,15 +177,10 @@ export class E2eeVaultEngine {
     ivHex: string,
     tagHex?: string
   ): Promise<string> {
-    let bytes: Uint8Array;
-    if (typeof Buffer !== 'undefined') {
-      bytes = new Uint8Array(Buffer.from(ciphertextBase64, 'base64'));
-    } else {
-      const binaryStr = atob(ciphertextBase64);
-      bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
+    const binaryStr = atob(ciphertextBase64);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
     }
 
     const decryptedBytes = await this.decrypt(bytes, ivHex, tagHex);
@@ -206,7 +196,15 @@ export class E2eeVaultEngine {
 
   public async verifyStoredCipher(cipherJson: string): Promise<boolean> {
     try {
-      const parsed = JSON.parse(cipherJson);
+      interface StoredCipherPayload {
+        ciphertextBase64: string;
+        ivHex: string;
+        tagHex?: string;
+      }
+      const parsed = JSON.parse(cipherJson) as StoredCipherPayload;
+      if (!parsed || typeof parsed.ciphertextBase64 !== 'string' || typeof parsed.ivHex !== 'string') {
+        return false;
+      }
       const decrypted = await this.decryptText(parsed.ciphertextBase64, parsed.ivHex, parsed.tagHex);
       return decrypted === 'synkk-e2ee-verify-token-v1';
     } catch {

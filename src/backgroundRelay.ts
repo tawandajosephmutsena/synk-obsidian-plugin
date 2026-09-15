@@ -1,15 +1,6 @@
 import { App, Notice, Platform } from 'obsidian';
 import { SynkkApiClient } from './apiClient';
-
-export interface TransportStatus {
-  status: string;
-  vault: string;
-  latest_version: number;
-  is_e2ee: boolean;
-  active_collaborators: number;
-  total_files: number;
-  server_time: string;
-}
+import { TransportStatus } from './types';
 
 export class BackgroundSyncRelay {
   private app: App;

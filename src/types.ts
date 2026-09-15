@@ -38,6 +38,16 @@ export interface BroadcastingConfig {
   scheme: string;
 }
 
+export interface TransportStatus {
+  status: string;
+  vault: string;
+  latest_version: number;
+  is_e2ee: boolean;
+  active_collaborators: number;
+  total_files: number;
+  server_time: string;
+}
+
 export const DEFAULT_SETTINGS: SynkkSettings = {
   serverUrl: 'https://synkk.space/api/v1',
   deviceToken: '',

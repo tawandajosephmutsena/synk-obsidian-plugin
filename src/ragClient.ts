@@ -13,7 +13,10 @@ export class RagClient {
     return res.results || [];
   }
 
-  public async reindex(vaultSlug: string, force: boolean = false): Promise<any> {
+  public async reindex(
+    vaultSlug: string,
+    force: boolean = false
+  ): Promise<{ status: string; files_indexed: number; chunks_count: number; duration_ms: number }> {
     return this.apiClient.ragIndex(vaultSlug, force);
   }
 

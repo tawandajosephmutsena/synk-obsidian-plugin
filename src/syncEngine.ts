@@ -52,7 +52,7 @@ export class SynkkSyncEngine {
       const statePath = this.getStatePath();
       if (await this.app.vault.adapter.exists(statePath)) {
         const raw = await this.app.vault.adapter.read(statePath);
-        this.stateData = JSON.parse(raw);
+        this.stateData = JSON.parse(raw) as SyncStateData;
         for (const f of Object.values(this.stateData.files || {})) {
           if (!f.localPlaintextSha256 && f.sha256) {
             f.localPlaintextSha256 = f.sha256;
@@ -69,7 +69,7 @@ export class SynkkSyncEngine {
       const legacyPath = `${configDir}/synkk-state.json`;
       if (await this.app.vault.adapter.exists(legacyPath)) {
         const raw = await this.app.vault.adapter.read(legacyPath);
-        this.stateData = JSON.parse(raw);
+        this.stateData = JSON.parse(raw) as SyncStateData;
         for (const f of Object.values(this.stateData.files || {})) {
           if (!f.localPlaintextSha256 && f.sha256) {
             f.localPlaintextSha256 = f.sha256;
@@ -163,18 +163,14 @@ export class SynkkSyncEngine {
   }
 
   private arrayBufferToBase64(buffer: ArrayBuffer): string {
-    if (typeof Buffer !== 'undefined') {
-      return Buffer.from(buffer).toString('base64');
-    }
-
     let binary = '';
     const bytes = new Uint8Array(buffer);
     const chunkSize = 8192;
     for (let i = 0; i < bytes.length; i += chunkSize) {
       const chunk = bytes.subarray(i, i + chunkSize);
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
+      binary += String.fromCharCode(...chunk);
     }
-    return window.btoa(binary);
+    return btoa(binary);
   }
 
   public getIsSyncing(): boolean {

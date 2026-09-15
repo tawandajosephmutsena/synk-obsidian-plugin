@@ -187,7 +187,7 @@ export async function handlePairingProtocol(plugin: SynkkPlugin, params: Record<
 
     // Trigger initial sync
     if (plugin.syncEngine) {
-      plugin.syncEngine.sync();
+      void plugin.syncEngine.sync();
     }
   } catch (err: unknown) {
     const status = err && typeof err === 'object' && 'status' in err ? (err as { status: number }).status : 0;

@@ -26,6 +26,10 @@ export class SynkkSettingTab extends PluginSettingTab {
   }
 
   display(): void {
+    this.renderSettings();
+  }
+
+  private renderSettings(): void {
     const { containerEl } = this;
     containerEl.empty();
 
@@ -52,7 +56,7 @@ export class SynkkSettingTab extends PluginSettingTab {
               let parsed: QuickConnectPayload | null = null;
 
               if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-                parsed = JSON.parse(trimmed);
+                parsed = JSON.parse(trimmed) as QuickConnectPayload;
               } else if (trimmed.startsWith('obsidian://synkk-pair') || trimmed.startsWith('synkk-pair://') || trimmed.startsWith('synkk://')) {
                 const rawUrl = trimmed.replace(/^(obsidian:\/\/synkk-pair|synkk-pair:\/\/|synkk:\/\/pair)\??/, 'http://synkk-placeholder/?');
                 const url = new URL(rawUrl);
@@ -71,7 +75,7 @@ export class SynkkSettingTab extends PluginSettingTab {
               if (parsed?.type === 'synkk-pairing-session' && parsed.session && parsed.server) {
                 const { handlePairingProtocol } = await import('./pairing');
                 await handlePairingProtocol(this.plugin, parsed);
-                this.display();
+                this.renderSettings();
                 return;
               }
 
@@ -98,7 +102,7 @@ export class SynkkSettingTab extends PluginSettingTab {
                   new Notice('⚡ Quick Connect applied! Please click "Verify & Load Vaults" below.');
                 }
 
-                this.display(); // Refresh settings tab view
+                this.renderSettings(); // Refresh settings tab view
               }
             } catch (err: unknown) {
               const msg = err instanceof Error ? err.message : String(err);
@@ -155,7 +159,7 @@ export class SynkkSettingTab extends PluginSettingTab {
               const vaults = await this.plugin.apiClient.getVaults();
 
               new Notice(`Connected as ${authRes.user.name} (${authRes.team.name})! Loaded ${vaults.length} vaults.`);
-              this.display(); // Refresh UI with populated dropdown
+              this.renderSettings(); // Refresh UI with populated dropdown
             } catch (err: unknown) {
               const msg = err instanceof Error ? err.message : String(err);
               new Notice(`Connection failed: ${msg || 'Unknown error'}`);
@@ -341,7 +345,7 @@ export class SynkkSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
 
             new Notice('🔒 Zero-Knowledge E2EE successfully enabled on vault!');
-            this.display();
+            this.renderSettings();
           } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
             new Notice(`E2EE initialization failed: ${msg}`);
