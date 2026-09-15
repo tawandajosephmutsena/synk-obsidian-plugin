@@ -10,9 +10,9 @@
 
 <p align="center">
   <a href="https://synkk.space">Website</a> ·
-  <a href="https://synkk.space/docs">Docs</a> ·
+  <a href="https://synkk.space/documentation">Docs</a> ·
   <a href="https://github.com/tawandajosephmutsena/synkk">Server repo</a> ·
-  <a href="https://github.com/tawandajosephmutsena/synk-obsidian-plugin/releases/tag/1.0.0">v1.0.0 release</a> ·
+  <a href="https://github.com/tawandajosephmutsena/synk-obsidian-plugin/releases/latest">Latest release</a> ·
   <a href="https://ottomate.space">Ottomate</a>
 </p>
 
@@ -59,7 +59,7 @@ Synkk Team Vault Sync connects an Obsidian vault to a Synkk team server. It is d
 
 ### Method 2: Manual Installation
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [v1.0.0 release](https://github.com/tawandajosephmutsena/synk-obsidian-plugin/releases/tag/1.0.0).
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/tawandajosephmutsena/synk-obsidian-plugin/releases/latest).
 2. Create `<vault>/.obsidian/plugins/synkk-sync/`.
 3. Place the three release files in that directory.
 4. In Obsidian, open **Settings -> Community plugins** and enable **Synkk Team Vault Sync**.
@@ -78,7 +78,7 @@ The production command compiles TypeScript and bundles `main.js`. Release packag
 ## Links
 
 - Public app: [synkk.space](https://synkk.space)
-- Documentation: [synkk.space/docs](https://synkk.space/docs)
+- Documentation: [synkk.space/documentation](https://synkk.space/documentation)
 - Server repo: [github.com/tawandajosephmutsena/synkk](https://github.com/tawandajosephmutsena/synkk)
 - Plugin repo: [github.com/tawandajosephmutsena/synk-obsidian-plugin](https://github.com/tawandajosephmutsena/synk-obsidian-plugin)
 - Creator studio: [Ottomate](https://ottomate.space)
