@@ -314,7 +314,7 @@ export class CollabRelayClient {
         view.dispatch({
           effects: collabCompartment.reconfigure([]),
         });
-      } catch (_e) {
+      } catch {
         // view might already be destroyed
       }
     }

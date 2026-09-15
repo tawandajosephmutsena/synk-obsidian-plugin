@@ -13,7 +13,7 @@ export class SynkkSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl).setName('Synkk Vault Sync Settings').setHeading();
+    new Setting(containerEl).setName('Synkk Vault Sync').setHeading();
 
     // Server Info Banner
     const infoBox = containerEl.createDiv({ cls: 'synkk-settings-info' });

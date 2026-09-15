@@ -91,8 +91,7 @@ export class VaultCopilotModal extends Modal {
     this.isThinking = true;
     this.responseContainer.empty();
 
-    const loadingDiv = this.responseContainer.createDiv();
-    loadingDiv.style.padding = '16px 0';
+    const loadingDiv = this.responseContainer.createDiv({ cls: 'synkk-copilot-loading' });
     loadingDiv.createEl('div', {
       text: '🧠 Traversing [[wikilinks]] and reasoning over note embeddings...',
     });
