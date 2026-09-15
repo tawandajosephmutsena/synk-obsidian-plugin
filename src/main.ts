@@ -123,7 +123,7 @@ export default class SynkkPlugin extends Plugin {
 
     // Command: Sync Now
     this.addCommand({
-      id: 'synkk-sync-now',
+      id: 'sync-now',
       name: 'Synchronize Now',
       callback: async () => {
         await this.syncEngine.sync();
@@ -132,7 +132,7 @@ export default class SynkkPlugin extends Plugin {
 
     // Command: Open Conflict Sandbox
     this.addCommand({
-      id: 'synkk-open-conflict-sandbox',
+      id: 'open-conflict-sandbox',
       name: 'Visual Conflict Sandbox: Reconcile Notes',
       callback: () => {
         new ConflictResolverModal(this.app, this).open();
@@ -141,7 +141,7 @@ export default class SynkkPlugin extends Plugin {
 
     // Command: Hydrate Active Ghost File
     this.addCommand({
-      id: 'synkk-hydrate-active-file',
+      id: 'hydrate-active-file',
       name: 'Ghost Files: Hydrate active file on-demand',
       checkCallback: (checking: boolean) => {
         const activeFile = this.app.workspace.getActiveFile();
@@ -157,7 +157,7 @@ export default class SynkkPlugin extends Plugin {
 
     // Command: Dehydrate Active File
     this.addCommand({
-      id: 'synkk-dehydrate-active-file',
+      id: 'dehydrate-active-file',
       name: 'Ghost Files: Dehydrate active file to ghost stub',
       checkCallback: (checking: boolean) => {
         const activeFile = this.app.workspace.getActiveFile();
@@ -219,7 +219,7 @@ export default class SynkkPlugin extends Plugin {
 
     // Command: Check Transport Status
     this.addCommand({
-      id: 'synkk-check-transport-status',
+      id: 'check-transport-status',
       name: 'Transport Relay: Check server transport status',
       callback: async () => {
         if (!this.settings.selectedVaultSlug) {
@@ -237,7 +237,7 @@ export default class SynkkPlugin extends Plugin {
 
     // Command: Ask Vault Copilot (RAG)
     this.addCommand({
-      id: 'synkk-ask-vault-copilot',
+      id: 'ask-vault-copilot',
       name: 'Vault Copilot: Ask a question (RAG)',
       callback: () => {
         if (!this.settings.selectedVaultSlug) {
@@ -250,7 +250,7 @@ export default class SynkkPlugin extends Plugin {
 
     // Command: Re-index Vector Embeddings
     this.addCommand({
-      id: 'synkk-reindex-vault-embeddings',
+      id: 'reindex-vault-embeddings',
       name: 'Vault Copilot: Re-index vector embeddings',
       callback: async () => {
         if (!this.settings.selectedVaultSlug) {
