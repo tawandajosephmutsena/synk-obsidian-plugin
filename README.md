@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://synkk.space">Website</a> ·
+  <a href="https://synkk.space/p/synkk-docs">Live Docs Portal</a> ·
   <a href="https://synkk.space/documentation">Docs</a> ·
   <a href="https://github.com/tawandajosephmutsena/synkk">Server repo</a> ·
   <a href="https://github.com/tawandajosephmutsena/synk-obsidian-plugin/releases/latest">Latest release</a> ·
@@ -33,7 +34,9 @@ Synkk Team Vault Sync connects an Obsidian vault to a Synkk team server. It is d
 ## Core Capabilities
 
 - **Cross-Platform Sync:** macOS, Windows, Linux, iOS, and Android support through Obsidian's plugin runtime.
+- **First-Sync Pre-Flight & Migration Wizard:** Built-in 4-phase diagnostic wizard that inspects local vaults prior to first sync, groups files (Markdown, Canvases, Images, Media, PDFs), sanitizes illegal cross-platform characters (`: * ? " < > | \`) with a single click, simulates quota and change counts via dry-run API, and prevents mass wipes with the 20% Atomic Safety Shield.
 - **One-Scan QR Pairing:** Instant device setup using the `obsidian://synkk-pair` deep link protocol. Scan a QR code in the Synkk web dashboard to connect your mobile or desktop device in 2 seconds.
+- **Interactive Livewire Vault Portals:** Publish your vault as an interactive web portal at `/p/{slug}` in real time with 4 design presets, instant Livewire fuzzy search, and interactive backlinks. [Explore the live Synkk Docs Portal](https://synkk.space/p/synkk-docs).
 - **Real-Time Multiplayer Collaboration (Yjs):** Real-time concurrent Markdown editing powered by Yjs CRDTs over Laravel Reverb, with remote awareness carets, shared undo history, and offline convergence.
 - **Zero-Knowledge Client-Side Encryption (E2EE):** High-entropy AES-256-GCM client-side encryption for E2EE vaults. Plaintext notes and Yjs updates never touch server disks unencrypted.
 - **On-Demand Ghost Files:** Dehydrate large attachments into lightweight stubs to keep mobile vaults lean, with one-click on-demand hydration.
