@@ -236,3 +236,44 @@ export interface RagStatusResponse {
   llm_provider: string;
   last_indexed_at: string | null;
 }
+
+export interface VaultPreflightRequest {
+  total_files: number;
+  total_bytes: number;
+  categories?: Record<string, { count: number; bytes: number }>;
+  files?: Array<{ path: string; size?: number; sha256?: string }>;
+}
+
+export interface VaultPreflightResponse {
+  status: 'ready' | 'quota_exceeded';
+  authorized: boolean;
+  message?: string;
+  vault?: {
+    id: number;
+    slug: string;
+    name: string;
+    version: number;
+    server_files_count: number;
+    server_bytes: number;
+  };
+  quota: {
+    allowed: boolean;
+    current_storage_bytes: number;
+    additional_bytes: number;
+    storage_limit_bytes: number;
+    remaining_bytes?: number;
+    deficit_bytes?: number;
+  };
+  simulation?: {
+    to_upload_count: number;
+    to_download_count: number;
+    identical_skipped_count: number;
+    bandwidth_saved_bytes: number;
+  };
+  safety?: {
+    atomic_shield_active: boolean;
+    max_deletion_threshold_percent: number;
+    max_bulk_deletions: number;
+  };
+  recommendation?: string;
+}

@@ -271,6 +271,16 @@ export default class SynkkPlugin extends Plugin {
       },
     });
 
+    // Command: Run Pre-Flight Vault Scan & Migration Wizard
+    this.addCommand({
+      id: 'open-migration-wizard',
+      name: 'Vault Migration: Run Pre-Flight Diagnostic & Migration Wizard',
+      callback: async () => {
+        const { SynkkMigrationWizardModal } = await import('./migrationWizardModal');
+        new SynkkMigrationWizardModal(this.app, this).open();
+      },
+    });
+
     // Settings Tab
     this.addSettingTab(new SynkkSettingTab(this.app, this));
 

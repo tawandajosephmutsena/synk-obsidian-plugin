@@ -385,6 +385,21 @@ export class SynkkSettingTab extends PluginSettingTab {
         })
       );
 
+    new Setting(containerEl).setName('Pre-Flight & Migration Wizard').setHeading();
+
+    new Setting(containerEl)
+      .setName('🛫 Pre-Flight Vault Scan & Migration Wizard')
+      .setDesc('Run diagnostic safety scan, detect friction risks (.trash, .git, giant media, unsafe paths), simulate dry run on server, and migrate with zero data loss.')
+      .addButton((btn) =>
+        btn
+          .setButtonText('Launch Migration Wizard')
+          .setCta()
+          .onClick(async () => {
+            const { SynkkMigrationWizardModal } = await import('./migrationWizardModal');
+            new SynkkMigrationWizardModal(this.app, this.plugin).open();
+          })
+      );
+
     new Setting(containerEl).setName('Sync Schedule & Automation').setHeading();
 
     // Auto-Sync Toggle

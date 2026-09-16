@@ -333,4 +333,442 @@
   white-space: nowrap;
 }
 
+/* ==========================================================================
+   Vault Pre-Flight & Migration Wizard Styles
+   ========================================================================== */
+
+.synkk-migration-modal {
+  max-width: 680px;
+  width: 92vw;
+  padding: 20px 24px;
+}
+
+.synkk-wizard-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.synkk-wizard-icon {
+  font-size: 30px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.synkk-wizard-title-group {
+  flex: 1;
+}
+
+.synkk-wizard-title {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.synkk-wizard-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* 4-Step Stepper Header */
+.synkk-wizard-stepper {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.synkk-step-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.synkk-step-item.is-active {
+  background: rgba(var(--interactive-accent-rgb, 99, 102, 241), 0.12);
+  border-color: var(--interactive-accent);
+  color: var(--text-accent);
+  font-weight: 600;
+}
+
+.synkk-step-item.is-completed {
+  color: var(--text-success, #10b981);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.synkk-step-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-modifier-border);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.synkk-step-item.is-active .synkk-step-num {
+  background: var(--interactive-accent);
+  color: #fff;
+}
+
+.synkk-step-item.is-completed .synkk-step-num {
+  background: #10b981;
+  color: #fff;
+}
+
+.synkk-step-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Body & Loading */
+.synkk-wizard-body {
+  min-height: 280px;
+}
+
+.synkk-wizard-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 240px;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Stats Grid */
+.synkk-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.synkk-stat-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.synkk-stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.synkk-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.synkk-stat-val.color-accent {
+  color: var(--text-accent);
+}
+
+.synkk-stat-val.color-success {
+  color: #10b981;
+}
+
+.synkk-stat-val.color-warning {
+  color: #f59e0b;
+}
+
+/* Category Pills */
+.synkk-section-title {
+  margin: 16px 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.synkk-category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.synkk-category-pill {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 11px;
+  color: var(--text-normal);
+}
+
+/* Friction Items List */
+.synkk-friction-list {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.synkk-clean-banner {
+  padding: 8px 4px;
+  font-size: 12px;
+  color: #10b981;
+  font-weight: 500;
+}
+
+.synkk-friction-item {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: 12px;
+}
+
+.synkk-friction-item:last-child {
+  border-bottom: none;
+}
+
+.synkk-friction-icon {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.synkk-friction-detail {
+  flex: 1;
+}
+
+.synkk-friction-path {
+  font-weight: 600;
+  color: var(--text-normal);
+  word-break: break-all;
+}
+
+.synkk-friction-msg {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.synkk-more-notice {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 6px 0 0 0;
+  font-style: italic;
+}
+
+.synkk-sanitize-box {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.synkk-sanitize-box p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-normal);
+}
+
+/* Options & Checkboxes in Step 2 */
+.synkk-options-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.synkk-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.synkk-checkbox-row:hover {
+  border-color: var(--interactive-accent);
+}
+
+.synkk-checkbox-row input[type="checkbox"] {
+  margin-top: 3px;
+  cursor: pointer;
+}
+
+.synkk-checkbox-row label {
+  cursor: pointer;
+}
+
+.synkk-desc-text {
+  margin: 3px 0 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Savings Card */
+.synkk-savings-card {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.08) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.synkk-savings-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #10b981;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.synkk-savings-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-normal);
+}
+
+.synkk-savings-desc {
+  margin: 4px 0 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Simulation Detail */
+.synkk-detail-box {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 14px;
+}
+
+.synkk-detail-box p {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--text-normal);
+}
+
+.synkk-quota-exceeded-card {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.synkk-quota-exceeded-card h4 {
+  margin: 0 0 6px 0;
+  color: #ef4444;
+}
+
+.synkk-quota-exceeded-card p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-normal);
+}
+
+/* Execution & Completion */
+.synkk-execution-container {
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.synkk-progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: var(--background-modifier-border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.synkk-progress-bar-pulse {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #3b82f6, #10b981, #6366f1);
+  background-size: 200% 100%;
+  animation: synkk-gradient-move 1.5s infinite linear;
+}
+
+@keyframes synkk-gradient-move {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.synkk-progress-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.synkk-complete-seal {
+  font-size: 48px;
+  margin-bottom: 8px;
+  animation: synkk-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes synkk-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.synkk-complete-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 440px;
+  margin: 0 auto 18px auto;
+}
+
+.synkk-complete-btn {
+  padding: 8px 20px;
+  font-size: 13px;
+}
+
+/* Footer Actions */
+.synkk-wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
 

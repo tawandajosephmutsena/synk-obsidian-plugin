@@ -1,5 +1,5 @@
 import { Platform, requestUrl, RequestUrlParam, RequestUrlResponse } from 'obsidian';
-import { ManifestResponse, RagQueryResponse, RagSearchResult, RagStatusResponse, RemoteVault, TransportStatus, UploadResponse, VerifyAuthResponse } from './types';
+import { ManifestResponse, RagQueryResponse, RagSearchResult, RagStatusResponse, RemoteVault, TransportStatus, UploadResponse, VaultPreflightRequest, VaultPreflightResponse, VerifyAuthResponse } from './types';
 
 export class SynkkHttpError extends Error {
   status: number;
@@ -7,6 +7,7 @@ export class SynkkHttpError extends Error {
   isRemoteWipe?: boolean;
   isExpiredOrConsumed?: boolean;
   validationErrors?: unknown;
+  data?: unknown;
 
   constructor(message: string, status: number) {
     super(message);
@@ -98,6 +99,7 @@ export class SynkkApiClient {
       const message = firstError || 'Validation error (HTTP 422): Malformed request payload or file path.';
       const err = new SynkkHttpError(message, 422);
       err.validationErrors = data?.errors;
+      err.data = data;
       throw err;
     }
 
@@ -531,5 +533,37 @@ export class SynkkApiClient {
     }
 
     return res.json as RagStatusResponse;
+  }
+
+  public async vaultPreflight(
+    vaultSlug: string,
+    payload: VaultPreflightRequest
+  ): Promise<VaultPreflightResponse> {
+    const url = `${this.serverUrl}/vaults/${encodeURIComponent(vaultSlug)}/preflight`;
+    try {
+      const res = await this.request({
+        url,
+        method: 'POST',
+        headers: {
+          ...this.getHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.status !== 200) {
+        throw new Error(`Vault preflight failed: HTTP ${res.status} - ${res.text}`);
+      }
+
+      return res.json as VaultPreflightResponse;
+    } catch (err: unknown) {
+      if (err instanceof SynkkHttpError && err.status === 422 && err.data) {
+        const body = err.data as VaultPreflightResponse;
+        if (body.status === 'quota_exceeded') {
+          return body;
+        }
+      }
+      throw err;
+    }
   }
 }
