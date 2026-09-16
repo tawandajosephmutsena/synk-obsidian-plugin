@@ -216,3 +216,121 @@
   margin-top: 4px;
 }
 
+/* --- Synkk QR Pairing Modal --- */
+.synkk-pairing-modal {
+  max-width: 480px;
+  width: 100%;
+}
+
+.synkk-pairing-modal-title {
+  margin-top: 0;
+  margin-bottom: 4px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.synkk-pairing-modal-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.synkk-camera-container {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.synkk-camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.synkk-camera-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.synkk-camera-reticle {
+  width: 140px;
+  height: 140px;
+  border: 2px solid #f59e0b;
+  border-radius: 16px;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4), inset 0 0 15px rgba(245, 158, 11, 0.2);
+  animation: synkk-reticle-pulse 2s infinite ease-in-out;
+}
+
+@keyframes synkk-reticle-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+
+.synkk-camera-status {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  right: 12px;
+  margin: 0;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.65);
+  border-radius: 6px;
+  font-size: 11px;
+  color: #fff;
+  text-align: center;
+}
+
+.synkk-pairing-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.synkk-pairing-btn {
+  flex: 1;
+  min-width: 140px;
+  text-align: center;
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+.synkk-hidden-input {
+  display: none;
+}
+
+.synkk-manual-pairing-box {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.synkk-manual-input {
+  flex: 1;
+}
+
+.synkk-manual-btn {
+  white-space: nowrap;
+}
+
+

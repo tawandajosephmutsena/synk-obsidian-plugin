@@ -91,6 +91,77 @@ export function validatePairingParams(params: Record<string, string | undefined>
 }
 
 /**
+ * Normalizes and extracts pairing parameters from various raw inputs:
+ * - obsidian://synkk-pair URL
+ * - Web bridge URL (https://synkk.space/pair?...)
+ * - JSON string payload
+ * - Raw token string (synkk_...)
+ */
+export function parsePairingPayload(rawInput: string): Record<string, string | undefined> | null {
+  const trimmed = rawInput.trim();
+  if (!trimmed) return null;
+
+  // 1. JSON string payload
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+      return {
+        type: 'synkk-pairing-session',
+        server: typeof parsed.server === 'string' ? parsed.server : undefined,
+        session: typeof parsed.session === 'string' ? parsed.session : (typeof parsed.session_id === 'string' ? parsed.session_id : undefined),
+        vault: typeof parsed.vault === 'string' ? parsed.vault : (typeof parsed.vault_slug === 'string' ? parsed.vault_slug : undefined),
+        token: typeof parsed.token === 'string' ? parsed.token : (typeof parsed.plain_token === 'string' ? parsed.plain_token : undefined),
+        v: typeof parsed.v === 'string' || typeof parsed.v === 'number' ? String(parsed.v) : '2',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // 2. obsidian://synkk-pair protocol or custom scheme
+  if (trimmed.startsWith('obsidian://synkk-pair') || trimmed.startsWith('synkk-pair://') || trimmed.startsWith('synkk://')) {
+    try {
+      const normalized = trimmed.replace(/^(obsidian:\/\/synkk-pair|synkk-pair:\/\/|synkk:\/\/pair)\??/, 'https://placeholder/?');
+      const url = new URL(normalized);
+      return {
+        type: 'synkk-pairing-session',
+        server: url.searchParams.get('server') || undefined,
+        session: url.searchParams.get('session') || undefined,
+        vault: url.searchParams.get('vault') || undefined,
+        token: url.searchParams.get('token') || undefined,
+        v: url.searchParams.get('v') || '2',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // 3. Web bridge URL (e.g. https://synkk.space/pair?session=... or http://synkk.test/pair?...)
+  if (trimmed.includes('/pair?')) {
+    try {
+      const url = new URL(trimmed);
+      return {
+        type: 'synkk-pairing-session',
+        server: url.searchParams.get('server') || `${url.origin}/api/v1`,
+        session: url.searchParams.get('session') || undefined,
+        vault: url.searchParams.get('vault') || undefined,
+        token: url.searchParams.get('token') || undefined,
+        v: url.searchParams.get('v') || '2',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // 4. Raw device token
+  if (trimmed.startsWith('synkk_')) {
+    return { token: trimmed };
+  }
+
+  return null;
+}
+
+/**
  * Resolves appropriate device name and platform identifier for pairing.
  */
 export function getDevicePlatformInfo(

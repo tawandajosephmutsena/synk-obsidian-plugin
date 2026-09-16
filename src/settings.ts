@@ -44,36 +44,28 @@ export class SynkkSettingTab extends PluginSettingTab {
     // Instant Quick Connect (QR payload or connect string)
     new Setting(containerEl)
       .setName('⚡ One-Scan Quick Connect')
-      .setDesc('Paste your one-scan pairing URL (obsidian://synkk-pair?...), session JSON, or device sync token.')
+      .setDesc('Point camera at Synkk dashboard QR code, select QR photo, or paste your pairing link.')
+      .addButton((btn) => {
+        btn
+          .setButtonText('📷 Scan QR Code')
+          .setCta()
+          .onClick(async () => {
+            const { SynkkPairingModal } = await import('./pairingModal');
+            new SynkkPairingModal(this.app, this.plugin).open();
+          });
+      })
       .addText((text) => {
         text
-          .setPlaceholder('Paste obsidian://synkk-pair?... URL, session JSON, or token')
+          .setPlaceholder('Paste obsidian://synkk-pair?... URL, /pair?... link, or token')
           .onChange(async (val) => {
             const trimmed = val.trim();
             if (!trimmed) return;
 
             try {
-              let parsed: QuickConnectPayload | null = null;
-
-              if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-                parsed = JSON.parse(trimmed) as QuickConnectPayload;
-              } else if (trimmed.startsWith('obsidian://synkk-pair') || trimmed.startsWith('synkk-pair://') || trimmed.startsWith('synkk://')) {
-                const rawUrl = trimmed.replace(/^(obsidian:\/\/synkk-pair|synkk-pair:\/\/|synkk:\/\/pair)\??/, 'http://synkk-placeholder/?');
-                const url = new URL(rawUrl);
-                parsed = {
-                  type: 'synkk-pairing-session',
-                  server: url.searchParams.get('server') || undefined,
-                  session: url.searchParams.get('session') || undefined,
-                  token: url.searchParams.get('token') || undefined,
-                  vault: url.searchParams.get('vault') || undefined,
-                  v: url.searchParams.get('v') || '2',
-                };
-              } else if (trimmed.startsWith('synkk_')) {
-                parsed = { token: trimmed };
-              }
+              const { parsePairingPayload, handlePairingProtocol } = await import('./pairing');
+              const parsed = parsePairingPayload(trimmed);
 
               if (parsed?.type === 'synkk-pairing-session' && parsed.session && parsed.server) {
-                const { handlePairingProtocol } = await import('./pairing');
                 await handlePairingProtocol(this.plugin, parsed);
                 this.renderSettings();
                 return;

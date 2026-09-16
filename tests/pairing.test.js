@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 // Import pure helpers directly from pairing module or define compatible implementations
-const { isOriginSecure, validatePairingParams, getDevicePlatformInfo } = (() => {
+const { isOriginSecure, validatePairingParams, getDevicePlatformInfo, parsePairingPayload } = (() => {
   function isOriginSecure(serverUrl) {
     try {
       const url = new URL(serverUrl);
@@ -78,7 +78,67 @@ const { isOriginSecure, validatePairingParams, getDevicePlatformInfo } = (() => 
     return { platform: 'linux', deviceName: 'Desktop (Obsidian)' };
   }
 
-  return { isOriginSecure, validatePairingParams, getDevicePlatformInfo };
+  function parsePairingPayload(rawInput) {
+    const trimmed = rawInput.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return {
+          type: 'synkk-pairing-session',
+          server: typeof parsed.server === 'string' ? parsed.server : undefined,
+          session: typeof parsed.session === 'string' ? parsed.session : (typeof parsed.session_id === 'string' ? parsed.session_id : undefined),
+          vault: typeof parsed.vault === 'string' ? parsed.vault : (typeof parsed.vault_slug === 'string' ? parsed.vault_slug : undefined),
+          token: typeof parsed.token === 'string' ? parsed.token : (typeof parsed.plain_token === 'string' ? parsed.plain_token : undefined),
+          v: typeof parsed.v === 'string' || typeof parsed.v === 'number' ? String(parsed.v) : '2',
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    if (trimmed.startsWith('obsidian://synkk-pair') || trimmed.startsWith('synkk-pair://') || trimmed.startsWith('synkk://')) {
+      try {
+        const normalized = trimmed.replace(/^(obsidian:\/\/synkk-pair|synkk-pair:\/\/|synkk:\/\/pair)\??/, 'https://placeholder/?');
+        const url = new URL(normalized);
+        return {
+          type: 'synkk-pairing-session',
+          server: url.searchParams.get('server') || undefined,
+          session: url.searchParams.get('session') || undefined,
+          vault: url.searchParams.get('vault') || undefined,
+          token: url.searchParams.get('token') || undefined,
+          v: url.searchParams.get('v') || '2',
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    if (trimmed.includes('/pair?')) {
+      try {
+        const url = new URL(trimmed);
+        return {
+          type: 'synkk-pairing-session',
+          server: url.searchParams.get('server') || `${url.origin}/api/v1`,
+          session: url.searchParams.get('session') || undefined,
+          vault: url.searchParams.get('vault') || undefined,
+          token: url.searchParams.get('token') || undefined,
+          v: url.searchParams.get('v') || '2',
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    if (trimmed.startsWith('synkk_')) {
+      return { token: trimmed };
+    }
+
+    return null;
+  }
+
+  return { isOriginSecure, validatePairingParams, getDevicePlatformInfo, parsePairingPayload };
 })();
 
 test('validates and parses valid HTTPS obsidian://synkk-pair payload', () => {
@@ -171,4 +231,40 @@ test('correctly identifies HTTP 410 pairing expiration error state', () => {
   assert.equal(err.status, 410);
   assert.equal(err.isExpiredOrConsumed, true);
   assert.match(err.message, /expired or has already been used/);
+});
+
+test('parsePairingPayload normalizes obsidian URIs, web bridge links, JSON, and raw tokens', () => {
+  // 1. Obsidian scheme
+  const resObs = parsePairingPayload('obsidian://synkk-pair?server=https%3A%2F%2Fsynkk.space%2Fapi%2Fv1&session=sess_987&vault=core-vault&v=2');
+  assert.equal(resObs.type, 'synkk-pairing-session');
+  assert.equal(resObs.server, 'https://synkk.space/api/v1');
+  assert.equal(resObs.session, 'sess_987');
+  assert.equal(resObs.vault, 'core-vault');
+
+  // 2. Web bridge URL
+  const resWeb = parsePairingPayload('https://synkk.space/pair?session=sess_web123&server=https%3A%2F%2Fsynkk.space%2Fapi%2Fv1&vault=agency');
+  assert.equal(resWeb.type, 'synkk-pairing-session');
+  assert.equal(resWeb.server, 'https://synkk.space/api/v1');
+  assert.equal(resWeb.session, 'sess_web123');
+  assert.equal(resWeb.vault, 'agency');
+
+  // 3. JSON payload
+  const resJson = parsePairingPayload(JSON.stringify({
+    server: 'https://synkk.space/api/v1',
+    session: 'sess_json_abc',
+    vault: 'research',
+  }));
+  assert.equal(resJson.type, 'synkk-pairing-session');
+  assert.equal(resJson.server, 'https://synkk.space/api/v1');
+  assert.equal(resJson.session, 'sess_json_abc');
+  assert.equal(resJson.vault, 'research');
+
+  // 4. Raw token string
+  const resToken = parsePairingPayload('synkk_dev_abcdef1234567890');
+  assert.equal(resToken.token, 'synkk_dev_abcdef1234567890');
+  assert.equal(resToken.server, undefined);
+
+  // 5. Invalid string returns null
+  assert.equal(parsePairingPayload(''), null);
+  assert.equal(parsePairingPayload('just some random text'), null);
 });
