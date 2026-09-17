@@ -1,17 +1,6 @@
 import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem } from 'obsidian';
 import type SynkkPlugin from './main';
 
-interface QuickConnectPayload {
-  type?: string;
-  server?: string;
-  session?: string;
-  token?: string;
-  vault?: string;
-  v?: string;
-  encryption_passphrase?: string;
-  passphrase?: string;
-  [key: string]: string | undefined;
-}
 
 export class SynkkSettingTab extends PluginSettingTab {
   plugin: SynkkPlugin;

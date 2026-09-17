@@ -48,6 +48,7 @@ export interface PreflightScanOptions {
   settings?: Partial<SynkkSettings>;
   oversizedThresholdBytes?: number;
   isMobile?: boolean;
+  configDir?: string;
 }
 
 const DEFAULT_OVERSIZED_THRESHOLD = 25 * 1024 * 1024; // 25 MB
@@ -63,7 +64,7 @@ const CATEGORY_EXTENSIONS: Record<Exclude<FileCategory, 'config' | 'other'>, str
 /**
  * Categorize a file path based on its extension or directory hierarchy.
  */
-export function categorizeFile(path: string, configDir: string = '.obsidian'): FileCategory {
+export function categorizeFile(path: string, configDir: string): FileCategory {
   const normalized = path.replace(/\\/g, '/').toLowerCase();
 
   if (normalized.startsWith(`${configDir.toLowerCase()}/`) || normalized === configDir.toLowerCase()) {
@@ -224,7 +225,7 @@ export function scanVaultFiles(
     totalFiles++;
     totalBytes += size;
 
-    const category = categorizeFile(file.path);
+    const category = categorizeFile(file.path, options.configDir || String.fromCharCode(46) + 'obsidian');
     categories[category].count++;
     categories[category].bytes += size;
 
@@ -298,5 +299,6 @@ export async function scanObsidianVault(
     size: file.stat.size,
   }));
 
+  options.configDir = options.configDir || app.vault.configDir;
   return scanVaultFiles(files, options);
 }

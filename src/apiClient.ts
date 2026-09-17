@@ -77,7 +77,7 @@ export class SynkkApiClient {
           const parsed = parseInt(retryHeader, 10);
           if (!isNaN(parsed)) retryAfter = parsed;
         }
-        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        await new Promise(resolve => window.setTimeout(resolve, retryAfter * 1000));
         return this.request(params, retries - 1);
       } else {
         const err = new SynkkHttpError('Rate limit exceeded. Please try again later.', 429);

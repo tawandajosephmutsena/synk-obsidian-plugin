@@ -65,7 +65,7 @@ export class SynkkPairingModal extends Modal {
     });
 
     // Start live camera stream
-    this.startCamera(statusText);
+    void this.startCamera(statusText);
 
     // Fallback & Alternative Action Buttons
     const actionRow = contentEl.createDiv({ cls: 'synkk-pairing-actions' });
@@ -83,7 +83,7 @@ export class SynkkPairingModal extends Modal {
           return;
         }
         await this.processPayloadString(text.trim());
-      } catch (err) {
+      } catch {
         new Notice('Unable to read clipboard. Please paste manually below.');
       }
     };
@@ -145,7 +145,7 @@ export class SynkkPairingModal extends Modal {
         statusText.setText('Point camera at Synkk desktop dashboard QR code…');
         this.beginScanningLoop(statusText);
       }
-    } catch (err: unknown) {
+    } catch {
       statusText.setText('Camera access unavailable. Use "Select Image" or "Paste from Clipboard" below.');
     }
   }
@@ -193,7 +193,7 @@ export class SynkkPairingModal extends Modal {
           await this.processPayloadString(barcodes[0].rawValue);
           return;
         }
-      } catch (e) {
+      } catch {
         // Fall back to notice
       }
     }
@@ -239,7 +239,7 @@ export class SynkkPairingModal extends Modal {
 
   public onClose(): void {
     if (this.scanTimer !== null) {
-      clearInterval(this.scanTimer);
+      window.clearInterval(this.scanTimer);
       this.scanTimer = null;
     }
 

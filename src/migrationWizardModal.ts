@@ -3,7 +3,7 @@ import type SynkkPlugin from './main';
 import {
   buildPreflightPayload,
   formatBytes,
-  PreflightFrictionItem,
+
   PreflightScanResult,
   sanitizePath,
   scanObsidianVault,
@@ -69,7 +69,7 @@ export class SynkkMigrationWizardModal extends Modal {
 
     // Modal Header
     const header = contentEl.createDiv({ cls: 'synkk-wizard-header' });
-    header.createEl('div', { cls: 'synkk-wizard-icon', text: '🛫' });
+    header.createDiv({ cls: 'synkk-wizard-icon', text: '🛫' });
     const headerText = header.createDiv({ cls: 'synkk-wizard-title-group' });
     headerText.createEl('h2', {
       text: 'Vault Pre-Flight & Migration Engine',
@@ -92,7 +92,7 @@ export class SynkkMigrationWizardModal extends Modal {
 
     if (this.isScanning) {
       const loadingBox = body.createDiv({ cls: 'synkk-wizard-loading' });
-      loadingBox.createEl('div', { cls: 'synkk-sync-spin', text: '⚡' });
+      loadingBox.createDiv({ cls: 'synkk-sync-spin', text: '⚡' });
       loadingBox.createEl('p', { text: 'Running pre-flight vault analysis…' });
       return;
     }
@@ -133,23 +133,23 @@ export class SynkkMigrationWizardModal extends Modal {
     const statsGrid = container.createDiv({ cls: 'synkk-stats-grid' });
 
     const totalFilesCard = statsGrid.createDiv({ cls: 'synkk-stat-card' });
-    totalFilesCard.createEl('div', { text: 'Total Vault Files', cls: 'synkk-stat-label' });
-    totalFilesCard.createEl('div', {
+    totalFilesCard.createDiv({ text: 'Total Vault Files', cls: 'synkk-stat-label' });
+    totalFilesCard.createDiv({
       text: `${this.scanResult.totalFiles.toLocaleString()} files`,
       cls: 'synkk-stat-val',
     });
 
     const totalSizeCard = statsGrid.createDiv({ cls: 'synkk-stat-card' });
-    totalSizeCard.createEl('div', { text: 'Total Vault Footprint', cls: 'synkk-stat-label' });
-    totalSizeCard.createEl('div', {
+    totalSizeCard.createDiv({ text: 'Total Vault Footprint', cls: 'synkk-stat-label' });
+    totalSizeCard.createDiv({
       text: formatBytes(this.scanResult.totalBytes),
       cls: 'synkk-stat-val',
     });
 
     const frictionCard = statsGrid.createDiv({ cls: 'synkk-stat-card' });
-    frictionCard.createEl('div', { text: 'Friction Flags', cls: 'synkk-stat-label' });
+    frictionCard.createDiv({ text: 'Friction Flags', cls: 'synkk-stat-label' });
     const frictionCount = this.scanResult.frictionItems.length;
-    frictionCard.createEl('div', {
+    frictionCard.createDiv({
       text: frictionCount === 0 ? '✨ 0 Issues' : `⚠️ ${frictionCount} detected`,
       cls: `synkk-stat-val ${frictionCount > 0 ? 'color-warning' : 'color-success'}`,
     });
@@ -183,7 +183,7 @@ export class SynkkMigrationWizardModal extends Modal {
 
     if (this.scanResult.frictionItems.length === 0) {
       const cleanBanner = frictionList.createDiv({ cls: 'synkk-clean-banner' });
-      cleanBanner.createEl('span', { text: '🛡️ Vault Verified Clean: No path conflicts, oversized hazards, or invalid file names detected.' });
+      cleanBanner.createSpan({ text: '🛡️ Vault Verified Clean: No path conflicts, oversized hazards, or invalid file names detected.' });
     } else {
       const sampleItems = this.scanResult.frictionItems.slice(0, 5);
       for (const item of sampleItems) {
@@ -192,8 +192,8 @@ export class SynkkMigrationWizardModal extends Modal {
         iconSpan.setText(item.type === 'invalid_chars' ? '🛑' : '⚠️');
 
         const detail = itemEl.createDiv({ cls: 'synkk-friction-detail' });
-        detail.createEl('div', { text: item.path, cls: 'synkk-friction-path' });
-        detail.createEl('div', { text: `${item.message} — ${item.suggestedAction}`, cls: 'synkk-friction-msg' });
+        detail.createDiv({ text: item.path, cls: 'synkk-friction-path' });
+        detail.createDiv({ text: `${item.message} — ${item.suggestedAction}`, cls: 'synkk-friction-msg' });
       }
 
       if (this.scanResult.frictionItems.length > 5) {
@@ -364,8 +364,8 @@ export class SynkkMigrationWizardModal extends Modal {
       ? Math.min(100, Math.round((estimatedSavingsBytes / this.scanResult.totalBytes) * 100))
       : 0;
 
-    card.createEl('div', { text: '⚡ Estimated Bandwidth & Storage Saved', cls: 'synkk-savings-title' });
-    card.createEl('div', {
+    card.createDiv({ text: '⚡ Estimated Bandwidth & Storage Saved', cls: 'synkk-savings-title' });
+    card.createDiv({
       text: `${formatBytes(estimatedSavingsBytes)} (${pct}% reduction)`,
       cls: 'synkk-savings-value',
     });
@@ -389,7 +389,7 @@ export class SynkkMigrationWizardModal extends Modal {
 
     if (this.isSimulating) {
       const load = simContainer.createDiv({ cls: 'synkk-wizard-loading' });
-      load.createEl('div', { cls: 'synkk-sync-spin', text: '🔄' });
+      load.createDiv({ cls: 'synkk-sync-spin', text: '🔄' });
       load.createEl('p', { text: 'Simulating migration on Synkk server…' });
     } else if (this.preflightResponse) {
       this.renderSimulationResults(simContainer);
@@ -422,7 +422,7 @@ export class SynkkMigrationWizardModal extends Modal {
     if (simBox instanceof HTMLElement) {
       simBox.empty();
       const load = simBox.createDiv({ cls: 'synkk-wizard-loading' });
-      load.createEl('div', { cls: 'synkk-sync-spin', text: '🔄' });
+      load.createDiv({ cls: 'synkk-sync-spin', text: '🔄' });
       load.createEl('p', { text: 'Verifying team quota and calculating sync delta…' });
     }
 
@@ -466,22 +466,22 @@ export class SynkkMigrationWizardModal extends Modal {
     const simGrid = container.createDiv({ cls: 'synkk-stats-grid' });
 
     const upCard = simGrid.createDiv({ cls: 'synkk-stat-card' });
-    upCard.createEl('div', { text: 'Files to Upload', cls: 'synkk-stat-label' });
-    upCard.createEl('div', {
+    upCard.createDiv({ text: 'Files to Upload', cls: 'synkk-stat-label' });
+    upCard.createDiv({
       text: `⬆️ ${res.simulation?.to_upload_count ?? res.vault?.server_files_count ?? 0}`,
       cls: 'synkk-stat-val color-accent',
     });
 
     const downCard = simGrid.createDiv({ cls: 'synkk-stat-card' });
-    downCard.createEl('div', { text: 'Files to Pull', cls: 'synkk-stat-label' });
-    downCard.createEl('div', {
+    downCard.createDiv({ text: 'Files to Pull', cls: 'synkk-stat-label' });
+    downCard.createDiv({
       text: `⬇️ ${res.simulation?.to_download_count ?? 0}`,
       cls: 'synkk-stat-val',
     });
 
     const skipCard = simGrid.createDiv({ cls: 'synkk-stat-card' });
-    skipCard.createEl('div', { text: 'Identical Files Skipped', cls: 'synkk-stat-label' });
-    skipCard.createEl('div', {
+    skipCard.createDiv({ text: 'Identical Files Skipped', cls: 'synkk-stat-label' });
+    skipCard.createDiv({
       text: `⚡ ${res.simulation?.identical_skipped_count ?? 0}`,
       cls: 'synkk-stat-val color-success',
     });
@@ -509,7 +509,7 @@ export class SynkkMigrationWizardModal extends Modal {
 
     if (this.isExecuting) {
       const progressBox = execContainer.createDiv({ cls: 'synkk-progress-box' });
-      progressBox.createEl('div', { cls: 'synkk-progress-bar-container' }).createDiv({
+      progressBox.createDiv({ cls: 'synkk-progress-bar-container' }).createDiv({
         cls: 'synkk-progress-bar-pulse',
       });
       progressBox.createEl('p', {
@@ -519,7 +519,7 @@ export class SynkkMigrationWizardModal extends Modal {
     } else {
       // Completed State
       const completeCard = execContainer.createDiv({ cls: 'synkk-complete-card' });
-      completeCard.createEl('div', { cls: 'synkk-complete-seal', text: '✅' });
+      completeCard.createDiv({ cls: 'synkk-complete-seal', text: '✅' });
       completeCard.createEl('h3', { text: 'Vault Migration Verified & Complete!' });
       completeCard.createEl('p', {
         text: 'Your Obsidian vault is fully synchronized with your Synkk team server. Live collaboration and real-time push/pull are now active.',
