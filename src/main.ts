@@ -35,7 +35,7 @@ export default class SynkkPlugin extends Plugin {
       () => this.settings,
       async (patch) => {
         Object.assign(this.settings, patch);
-        await this.saveData(this.settings);
+        await this.saveSettings();
       },
       (status, isSyncing) => this.updateStatusBar(status, isSyncing)
     );
@@ -98,7 +98,7 @@ export default class SynkkPlugin extends Plugin {
     this.statusBarEl.onClickEvent(async () => {
       if (this.statusBarEl.textContent?.includes('Safety Shield')) {
         this.settings.safetyOverrideForNextSync = true;
-        await this.saveData(this.settings);
+        await this.saveSettings();
         new Notice('⚡ Synkk: Safety Shield override enabled for this sync run.', 5000);
       }
       void this.syncEngine.sync();
@@ -332,11 +332,23 @@ export default class SynkkPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<SynkkSettings> | null);
+    const rawData = ((await this.loadData()) as Partial<SynkkSettings> | null) || {};
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, rawData);
+
+    // P1-01 Security Migration: Never persist plaintext E2EE passphrase to disk.
+    // If a legacy data.json contains e2eePassphrase, keep it in memory for the active
+    // session, but immediately sanitize and strip it from the persisted settings file.
+    if (rawData.e2eePassphrase) {
+      await this.saveSettings();
+    }
   }
 
   async saveSettings() {
-    await this.saveData(this.settings);
+    // P1-01 Security Hardening: Never persist plaintext E2EE passphrase to disk.
+    // The passphrase remains exclusively in memory for the active session.
+    const sanitized: Partial<SynkkSettings> = { ...this.settings };
+    delete sanitized.e2eePassphrase;
+    await this.saveData(sanitized);
   }
 
   public configureAutoSync() {

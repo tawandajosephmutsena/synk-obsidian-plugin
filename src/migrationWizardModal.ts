@@ -406,7 +406,7 @@ export class SynkkMigrationWizardModal extends Modal {
       text: '🚀 Start Guarded Migration Sync',
       cls: 'mod-cta',
     });
-    startBtn.disabled = this.isSimulating || (this.preflightResponse && !this.preflightResponse.authorized);
+    startBtn.disabled = this.isSimulating || Boolean(this.preflightResponse !== null && !this.preflightResponse.authorized);
     startBtn.onclick = async () => {
       this.currentStep = 4;
       this.render();

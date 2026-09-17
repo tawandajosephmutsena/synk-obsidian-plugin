@@ -298,7 +298,7 @@ export class SynkkSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Vault Passphrase')
-      .setDesc('Shared passphrase used to derive the 256-bit encryption key. Must be identical across all your devices.')
+      .setDesc('Shared passphrase used to derive the 256-bit encryption key in memory. Never persisted to disk for maximum security.')
       .addText((text) => {
         text.inputEl.type = 'password';
         text
@@ -306,7 +306,13 @@ export class SynkkSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.e2eePassphrase)
           .onChange(async (val) => {
             this.plugin.settings.e2eePassphrase = val;
-            await this.plugin.saveSettings();
+            if (this.plugin.settings.e2eeSalt) {
+              try {
+                await this.plugin.syncEngine.e2eeEngine.initialize(val, this.plugin.settings.e2eeSalt);
+              } catch (e) {
+                console.error('Failed to initialize E2EE engine with new passphrase:', e);
+              }
+            }
           });
       });
 
