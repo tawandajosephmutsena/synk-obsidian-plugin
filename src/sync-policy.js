@@ -198,7 +198,15 @@ function chunkFilesForBatchUpload(files, maxCount = 50, maxBytes = 8 * 1024 * 10
   return chunks;
 }
 
-module.exports = {
+export {
+  deletionGuard,
+  shouldSyncPath,
+  isObsidianPathAllowed,
+  isPluginSafeForPlatform,
+  chunkFilesForBatchUpload,
+};
+
+export default {
   deletionGuard,
   shouldSyncPath,
   isObsidianPathAllowed,

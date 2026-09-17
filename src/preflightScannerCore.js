@@ -1,4 +1,4 @@
-const { shouldSyncPath } = require('./sync-policy.js');
+import { shouldSyncPath } from './sync-policy.js';
 
 const DEFAULT_OVERSIZED_THRESHOLD = 25 * 1024 * 1024; // 25 MB
 
@@ -237,7 +237,17 @@ function buildPreflightPayload(scanResult) {
   };
 }
 
-module.exports = {
+export {
+  DEFAULT_OVERSIZED_THRESHOLD,
+  categorizeFile,
+  detectFriction,
+  formatBytes,
+  sanitizePath,
+  scanVaultFiles,
+  buildPreflightPayload,
+};
+
+export default {
   DEFAULT_OVERSIZED_THRESHOLD,
   categorizeFile,
   detectFriction,

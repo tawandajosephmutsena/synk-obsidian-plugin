@@ -1,14 +1,14 @@
-const assert = require('node:assert/strict');
-const test = require('node:test');
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
-const {
+import {
   categorizeFile,
   detectFriction,
   formatBytes,
   sanitizePath,
   scanVaultFiles,
   buildPreflightPayload,
-} = require('../src/preflightScannerCore.js');
+} from '../src/preflightScannerCore.js';
 
 test('categorizes files into appropriate media and document types', () => {
   assert.equal(categorizeFile('Notes/Deep Work.md'), 'markdown');

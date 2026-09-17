@@ -79,7 +79,15 @@ function createFileState({
   };
 }
 
-module.exports = {
+export {
+  computeServerHash,
+  getIsolatedStatePath,
+  isFileModifiedLocally,
+  reconcileRemotePull,
+  createFileState,
+};
+
+export default {
   computeServerHash,
   getIsolatedStatePath,
   isFileModifiedLocally,

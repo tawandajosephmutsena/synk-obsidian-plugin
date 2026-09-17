@@ -1,5 +1,5 @@
-const assert = require('node:assert/strict');
-const test = require('node:test');
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
 function calculateCaretPosition(docLines, lineNum, colNum) {
   const targetLine = Math.max(1, Math.min(docLines.length, lineNum));

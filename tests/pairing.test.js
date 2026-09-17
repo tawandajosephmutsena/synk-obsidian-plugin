@@ -1,5 +1,5 @@
-const assert = require('node:assert/strict');
-const test = require('node:test');
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
 // Import pure helpers directly from pairing module or define compatible implementations
 const { isOriginSecure, validatePairingParams, getDevicePlatformInfo, parsePairingPayload } = (() => {

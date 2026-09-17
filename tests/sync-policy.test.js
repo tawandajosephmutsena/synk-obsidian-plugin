@@ -1,7 +1,7 @@
-const assert = require('node:assert/strict');
-const test = require('node:test');
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
-const { deletionGuard, shouldSyncPath } = require('../src/sync-policy.js');
+import { deletionGuard, shouldSyncPath } from '../src/sync-policy.js';
 
 const defaultSettings = {
   includedPaths: '',

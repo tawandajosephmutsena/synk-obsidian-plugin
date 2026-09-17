@@ -1,6 +1,6 @@
-const assert = require('node:assert/strict');
-const test = require('node:test');
-const { chunkFilesForBatchUpload } = require('../src/sync-policy.js');
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { chunkFilesForBatchUpload } from '../src/sync-policy.js';
 
 const STUB_REGEX = /<!-- synkk:ghost\s+path="([^"]+)"\s+size="(\d+)"\s+mime="([^"]+)"(?:\s+sha256="([^"]+)")?\s*-->/;
 

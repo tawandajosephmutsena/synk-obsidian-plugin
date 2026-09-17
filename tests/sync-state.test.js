@@ -1,13 +1,13 @@
-const assert = require('node:assert/strict');
-const test = require('node:test');
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
-const {
+import {
   computeServerHash,
   getIsolatedStatePath,
   isFileModifiedLocally,
   reconcileRemotePull,
   createFileState,
-} = require('../src/sync-state.js');
+} from '../src/sync-state.js';
 
 test('generates isolated state path per server and vault', () => {
   const path1 = getIsolatedStatePath('https://synkk.example.com/api/v1', 'work-vault');
