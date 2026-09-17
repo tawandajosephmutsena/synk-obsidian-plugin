@@ -6,6 +6,8 @@ export class SynkkHttpError extends Error {
   isProtocolUpgradeRequired?: boolean;
   isRemoteWipe?: boolean;
   isExpiredOrConsumed?: boolean;
+  isRateLimited?: boolean;
+  retryAfter?: number;
   validationErrors?: unknown;
   data?: unknown;
 
@@ -61,11 +63,30 @@ export class SynkkApiClient {
     };
   }
 
-  private async request(params: RequestUrlParam): Promise<RequestUrlResponse> {
+  private async request(params: RequestUrlParam, retries = 3): Promise<RequestUrlResponse> {
     const res = await requestUrl({
       ...params,
       throw: false,
     });
+
+    if (res.status === 429) {
+      if (retries > 0) {
+        let retryAfter = 2;
+        const retryHeader = res.headers?.['retry-after'] || res.headers?.['Retry-After'];
+        if (retryHeader) {
+          const parsed = parseInt(retryHeader, 10);
+          if (!isNaN(parsed)) retryAfter = parsed;
+        }
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        return this.request(params, retries - 1);
+      } else {
+        const err = new SynkkHttpError('Rate limit exceeded. Please try again later.', 429);
+        err.isRateLimited = true;
+        const retryHeader = res.headers?.['retry-after'] || res.headers?.['Retry-After'];
+        err.retryAfter = retryHeader ? parseInt(retryHeader, 10) : undefined;
+        throw err;
+      }
+    }
 
     if (res.status === 426) {
       const data = res.json as { message?: string } | null;
