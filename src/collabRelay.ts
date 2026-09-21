@@ -32,6 +32,7 @@ export class CollabRelayClient {
   snapshotTimer: number | null = null;
   snapshotDebounceMs = 3000;
   isDirty = false;
+  isFlushing = false;
 
   private activeViews: Set<EditorView> = new Set();
   private listeners: Array<(peers: CollabPeer[]) => void> = [];
@@ -161,16 +162,12 @@ export class CollabRelayClient {
       this.notifyListeners();
     });
 
-    // Seed local file content if present and ytext is empty
+    // Read local file content for deferred seeding after catch-up
+    let localFileText: string | null = null;
     try {
       const file = this.plugin.app.vault.getAbstractFileByPath(path);
       if (file instanceof TFile) {
-        const text = await this.plugin.app.vault.read(file);
-        if (text && this.ytext.length === 0) {
-          this.ydoc.transact(() => {
-            this.ytext!.insert(0, text);
-          }, 'local');
-        }
+        localFileText = await this.plugin.app.vault.read(file);
       }
     } catch {
       // File read error
@@ -286,6 +283,15 @@ export class CollabRelayClient {
     });
 
     await this.provider.connect();
+
+    // Deferred seeding: only populate Y.Text from local file if the server
+    // catch-up did not already fill it. Uses the provider's origin so the
+    // seeded content is NOT re-broadcast back to the server.
+    if (localFileText && this.ytext && this.ytext.length === 0) {
+      this.ydoc.transact(() => {
+        this.ytext!.insert(0, localFileText!);
+      }, this.provider.providerOrigin);
+    }
   }
 
   scheduleSnapshotFlush(vaultSlug: string, path: string): void {
@@ -300,6 +306,7 @@ export class CollabRelayClient {
   async flushDurableSnapshot(vaultSlug: string, path: string): Promise<void> {
     if (!this.isDirty || !this.ytext) return;
     this.isDirty = false;
+    this.isFlushing = true;
 
     try {
       const currentMarkdown = this.ytext.toString();
@@ -314,6 +321,8 @@ export class CollabRelayClient {
       }
     } catch (e) {
       console.error('Failed to flush durable snapshot:', e);
+    } finally {
+      this.isFlushing = false;
     }
   }
 

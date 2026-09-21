@@ -21,6 +21,7 @@ export class SynkkSyncEngine {
   private syncPromise: Promise<SyncResult> | null = null;
   private syncQueue: Array<(result: SyncResult) => void> = [];
   private onStatusChange?: (status: string, isSyncing: boolean) => void;
+  private getCollabActivePath?: () => string | null;
   public e2eeEngine: E2eeVaultEngine = new E2eeVaultEngine();
 
   private stateData: SyncStateData = {
@@ -33,13 +34,15 @@ export class SynkkSyncEngine {
     api: SynkkApiClient,
     getSettings: () => SynkkSettings,
     saveSettings: (settings: Partial<SynkkSettings>) => Promise<void>,
-    onStatusChange?: (status: string, isSyncing: boolean) => void
+    onStatusChange?: (status: string, isSyncing: boolean) => void,
+    getCollabActivePath?: () => string | null
   ) {
     this.app = app;
     this.api = api;
     this.getSettings = getSettings;
     this.saveSettings = saveSettings;
     this.onStatusChange = onStatusChange;
+    this.getCollabActivePath = getCollabActivePath;
   }
 
   public getStatePath(): string {
@@ -420,6 +423,7 @@ export class SynkkSyncEngine {
       // STEP 4: Scan local files and batch push modifications
       this.onStatusChange?.('Scanning local changes...', true);
       const allFiles = this.app.vault.getFiles();
+      const collabActivePath = this.getCollabActivePath?.() ?? null;
       const filesToPush: Array<{
         file: TFile;
         path: string;
@@ -431,6 +435,9 @@ export class SynkkSyncEngine {
       for (const file of allFiles) {
         const path = file.path;
         if (!this.shouldSync(path)) continue;
+        // Skip files under active Yjs collab — their content is synchronized
+        // through the collab transport; re-pushing causes text duplication.
+        if (collabActivePath && path === collabActivePath) continue;
 
         try {
           const buffer = await this.app.vault.adapter.readBinary(path);

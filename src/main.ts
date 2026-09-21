@@ -37,7 +37,8 @@ export default class SynkkPlugin extends Plugin {
         Object.assign(this.settings, patch);
         await this.saveSettings();
       },
-      (status, isSyncing) => this.updateStatusBar(status, isSyncing)
+      (status, isSyncing) => this.updateStatusBar(status, isSyncing),
+      () => this.collabRelay?.currentPath ?? null
     );
 
     // Eagerly initialize E2EE key on startup if passphrase & salt are configured
@@ -193,6 +194,10 @@ export default class SynkkPlugin extends Plugin {
     this.registerEvent(
       this.app.vault.on('modify', (file) => {
         if (file instanceof TFile && this.syncEngine.shouldSync(file.path)) {
+          // Skip sync when the write originated from the collab relay's
+          // snapshot flush — that content is already handled by the Yjs
+          // transport and re-pushing it causes text duplication.
+          if (this.collabRelay?.isFlushing) return;
           this.triggerDebouncedSync();
         }
       })
