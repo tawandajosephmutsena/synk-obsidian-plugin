@@ -48,7 +48,8 @@ export class CollabRelayClient {
     for (const leaf of leaves) {
       const view = leaf.view;
       if (view instanceof MarkdownView && view.file && view.file.path === path) {
-        const cm = (view.editor as any)?.cm as EditorView | undefined;
+        const editorWithCm = view.editor as unknown as { cm?: EditorView };
+        const cm = editorWithCm?.cm;
         if (cm) return cm;
       }
     }
@@ -309,8 +310,10 @@ export class CollabRelayClient {
     // catch-up did not already fill it. Uses the provider's origin so the
     // seeded content is NOT re-broadcast back to the server.
     if (localFileText && this.ytext && this.ytext.length === 0) {
+      const textToSeed = localFileText;
+      const targetYText = this.ytext;
       this.ydoc.transact(() => {
-        this.ytext!.insert(0, localFileText!);
+        targetYText.insert(0, textToSeed);
       }, this.provider.providerOrigin);
     }
 
