@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.10] - 2026-09-23
+## [1.0.11] - 2026-09-23
 
 ### Fixed
 - **Cross-Note Contamination:** Resolved severe issue where switching notes or creating new notes could cause content from previously viewed notes to be copied or overwritten. Disabled the CodeMirror 6 collaboration extension by default (`realtimeCollaboration: false`) and eliminated destructive document replacement in `collabRelay.ts`.
@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 - **Deletion Sync Overwrites:** Fixed sync engine Step 3 conflict behavior where remote corrupted notes overwrote local user deletions and edits. Incoming conflicting remote versions are now safely routed to `.sync-conflict-<timestamp>.md`, ensuring the user's active file and local deletions are preserved intact.
 - **Base Version Resolution:** Fixed batch-sync `base_version` resolution to reference remote manifest versions, allowing local edits to push cleanly to the server without false 409 conflict rejections.
 - **Sync Version Tracking:** Step 6 now tracks the highest pushed version from batch upload responses, preventing stale manifest re-pulls.
+- **Type Safety & Linting:** Eliminated `any` type casts and removed redundant non-null assertions in `collabRelay.ts`.
+
+## [1.0.10] - 2026-09-23
+
+### Fixed
+- Initial fixes for cross-note data contamination and CodeMirror live collaboration isolation.
 
 ## [1.0.9] - 2026-09-22
 
