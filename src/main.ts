@@ -38,7 +38,7 @@ export default class SynkkPlugin extends Plugin {
         await this.saveSettings();
       },
       (status, isSyncing) => this.updateStatusBar(status, isSyncing),
-      () => this.collabRelay?.currentPath ?? null
+      () => (this.settings.realtimeCollaboration ? this.collabRelay?.currentPath ?? null : null)
     );
 
     // Eagerly initialize E2EE key on startup if passphrase & salt are configured
@@ -184,7 +184,7 @@ export default class SynkkPlugin extends Plugin {
           await this.collabRelay.leave(vaultSlug, this.collabRelay.currentPath);
         }
 
-        if (file && file.extension === 'md') {
+        if (this.settings.realtimeCollaboration && file && file.extension === 'md') {
           await this.collabRelay.join(vaultSlug, file.path);
         }
       })

@@ -26,6 +26,12 @@ function isFileModifiedLocally(localSha, knownState) {
 
 function reconcileRemotePull(remoteFile, localSha, knownState) {
   if (!knownState) {
+    if (localSha === remoteFile.sha256) {
+      return {
+        needsDownload: false,
+        isConflict: false,
+      };
+    }
     return {
       needsDownload: true,
       isConflict: true,

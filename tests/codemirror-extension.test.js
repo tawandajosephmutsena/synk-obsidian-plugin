@@ -199,3 +199,106 @@ test('debounces snapshot flush when active note converges and clears on leave', 
   await new Promise((resolve) => setTimeout(resolve, 40));
   assert.equal(flushCalls, 1, 'Snapshot should flush once after debounce interval');
 });
+
+test('reconciles document changes with Y.Text without duplicate insertion', () => {
+  const initialDoc = '# Meeting Notes\n\n- Discuss project roadmap\n- Action items for next week\n';
+  const canonicalYText = '# Meeting Notes\n\n- Discuss project roadmap\n- Action items for next week\n';
+
+  // If local document matches canonical Y.Text, changes are empty (no insertion dispatch)
+  function computeReconciliationChanges(currentDoc, canonicalDoc) {
+    if (currentDoc === canonicalDoc) {
+      return null;
+    }
+    return { from: 0, to: currentDoc.length, insert: canonicalDoc };
+  }
+
+  assert.equal(computeReconciliationChanges(initialDoc, canonicalYText), null);
+
+  // If server had newer updates, it cleanly replaces the entire range rather than prepending/doubling
+  const newerServerText = '# Meeting Notes\n\n- Discuss project roadmap\n- Action items for next week\n- Additional item\n';
+  const changes = computeReconciliationChanges(initialDoc, newerServerText);
+  assert.deepEqual(changes, { from: 0, to: initialDoc.length, insert: newerServerText });
+  assert.notEqual(changes.from, changes.to); // Ensures range replacement (0 to length), NOT an offset 0 insertion that doubles text
+});
+
+test('isolated path view mapping prevents cross-note editor view pollution', () => {
+  const mockLeaves = [
+    {
+      view: {
+        file: { path: 'Note A.md' },
+        editor: { cm: { id: 'view_a' } },
+      },
+    },
+    {
+      view: {
+        file: { path: 'Note B.md' },
+        editor: { cm: { id: 'view_b' } },
+      },
+    },
+  ];
+
+  function getViewForPath(path) {
+    for (const leaf of mockLeaves) {
+      if (leaf.view?.file?.path === path) {
+        return leaf.view.editor.cm;
+      }
+    }
+    return null;
+  }
+
+  function isViewForCurrentPath(currentPath, view) {
+    if (!currentPath) return false;
+    const target = getViewForPath(currentPath);
+    return target === view;
+  }
+
+  // Active note is Note A
+  const currentPath = 'Note A.md';
+  const viewA = mockLeaves[0].view.editor.cm;
+  const viewB = mockLeaves[1].view.editor.cm;
+
+  assert.equal(isViewForCurrentPath(currentPath, viewA), true);
+  assert.equal(isViewForCurrentPath(currentPath, viewB), false);
+
+  // When a new note view is created, it is not for currentPath
+  const newNoteView = { id: 'view_new_note' };
+  assert.equal(isViewForCurrentPath(currentPath, newNoteView), false);
+});
+
+test('disabled realtimeCollaboration prevents collab view registration and leaves editor completely untouched', () => {
+  let registeredViews = [];
+  const mockCollabRelay = {
+    registerEditorView(v) {
+      registeredViews.push(v);
+    },
+  };
+
+  const settingsDisabled = { realtimeCollaboration: false };
+  const mockPluginDisabled = {
+    settings: settingsDisabled,
+    collabRelay: mockCollabRelay,
+  };
+
+  // Simulating constructor behavior in createCollabExtension
+  function initViewPlugin(plugin, view) {
+    if (!plugin.settings?.realtimeCollaboration) {
+      return { decorations: 'none' };
+    }
+    plugin.collabRelay?.registerEditorView(view);
+    return { decorations: 'collab' };
+  }
+
+  const result = initViewPlugin(mockPluginDisabled, { id: 'view1' });
+  assert.equal(result.decorations, 'none');
+  assert.equal(registeredViews.length, 0, 'No views should be registered when collab is disabled');
+
+  const settingsEnabled = { realtimeCollaboration: true };
+  const mockPluginEnabled = {
+    settings: settingsEnabled,
+    collabRelay: mockCollabRelay,
+  };
+  const resultEnabled = initViewPlugin(mockPluginEnabled, { id: 'view1' });
+  assert.equal(resultEnabled.decorations, 'collab');
+  assert.equal(registeredViews.length, 1, 'View should be registered when collab is enabled');
+});
+

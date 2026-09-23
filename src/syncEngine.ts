@@ -334,18 +334,6 @@ export class SynkkSyncEngine {
 
         if (needsDownload) {
           try {
-            if (isConflict && localConflictBuffer) {
-              // Fork local modifications to a conflict file so work is never lost
-              const extMatch = remoteFile.path.match(/(\.[^.]+)$/);
-              const conflictPath = extMatch
-                ? remoteFile.path.replace(/(\.[^.]+)$/, `.sync-conflict-${Date.now()}$1`)
-                : `${remoteFile.path}.sync-conflict-${Date.now()}`;
-
-              await this.app.vault.adapter.writeBinary(conflictPath, localConflictBuffer);
-              conflicts++;
-              new Notice(`Synkk: Local modification conflict on "${remoteFile.path}". Forked local copy to "${conflictPath}".`, 8000);
-            }
-
             this.onStatusChange?.(`Pulling ${remoteFile.path}...`, true);
             const isAttachment = !remoteFile.path.endsWith('.md');
             const shouldGhost = settings.ghostFilesEnabled && Platform.isMobile && isAttachment && (remoteFile.size > settings.ghostThresholdMb * 1024 * 1024);
@@ -376,6 +364,26 @@ export class SynkkSyncEngine {
                 errors++;
                 continue;
               }
+            }
+
+            if (isConflict && localConflictBuffer) {
+              // Local has been modified! NEVER overwrite the local file being edited.
+              // Save the incoming remote version to a conflict file instead.
+              const extMatch = remoteFile.path.match(/(\.[^.]+)$/);
+              const conflictPath = extMatch
+                ? remoteFile.path.replace(/(\.[^.]+)$/, `.sync-conflict-${Date.now()}$1`)
+                : `${remoteFile.path}.sync-conflict-${Date.now()}`;
+
+              const lastSlash = conflictPath.lastIndexOf('/');
+              if (lastSlash !== -1) {
+                const dir = conflictPath.substring(0, lastSlash);
+                await this.ensureDirectory(dir);
+              }
+
+              await this.app.vault.adapter.writeBinary(conflictPath, buffer);
+              conflicts++;
+              new Notice(`Synkk: Conflict on "${remoteFile.path}". Saved incoming remote version as "${conflictPath}". Local edits preserved.`, 8000);
+              continue;
             }
 
             if (exists) {
@@ -446,12 +454,18 @@ export class SynkkSyncEngine {
 
           // If file is new or modified locally
           if (isFileModifiedLocally(sha256, known)) {
+            let baseVersion = known ? known.version : 0;
+            const remoteEntry = manifest.files.find((f) => f.path === path);
+            if (remoteEntry && remoteEntry.version > baseVersion) {
+              baseVersion = remoteEntry.version;
+            }
+
             filesToPush.push({
               file,
               path,
               buffer,
               localSha: sha256,
-              knownVersion: known ? known.version : 0,
+              knownVersion: baseVersion,
             });
           }
         } catch (err: unknown) {
@@ -463,6 +477,8 @@ export class SynkkSyncEngine {
       // Process modified files in dynamic batches constrained by count and payload size
       const fileChunks = chunkFilesForBatchUpload(filesToPush, 50, 8 * 1024 * 1024);
       let pushedSoFar = 0;
+      let highestPushedVersion = 0;
+
       for (const chunk of fileChunks) {
         const batchProgress = fileChunks.length > 1
           ? ` (${pushedSoFar + 1}-${pushedSoFar + chunk.length} of ${filesToPush.length})`
@@ -523,6 +539,10 @@ export class SynkkSyncEngine {
 
         try {
           const res = await this.api.batchSync(vaultSlug, batchPayload);
+          if (typeof res.latest_version === 'number' && res.latest_version > highestPushedVersion) {
+            highestPushedVersion = res.latest_version;
+          }
+
           const resultMap = new Map<string, {
             path: string;
             status: string;
@@ -560,16 +580,19 @@ export class SynkkSyncEngine {
               // Up to date
             } else {
               pushed++;
-            }
+              if (typeof r.version === 'number' && r.version > highestPushedVersion) {
+                highestPushedVersion = r.version;
+              }
 
-            const isEncrypted = Boolean(settings.e2eeEnabled && this.e2eeEngine.isReady());
-            this.stateData.files[item.path] = createFileState({
-              localPlaintextSha: item.localSha,
-              remotePayloadSha: r.sha256 || item.localSha,
-              version: r.version || item.knownVersion,
-              mtime: item.file.stat.mtime,
-              isEncrypted,
-            });
+              const isEncrypted = Boolean(settings.e2eeEnabled && this.e2eeEngine.isReady());
+              this.stateData.files[item.path] = createFileState({
+                localPlaintextSha: item.localSha,
+                remotePayloadSha: r.sha256 || item.localSha,
+                version: r.version || item.knownVersion,
+                mtime: item.file.stat.mtime,
+                isEncrypted,
+              });
+            }
           }
         } catch (err: unknown) {
           console.error(`Error in batch upload:`, err);
@@ -600,7 +623,11 @@ export class SynkkSyncEngine {
 
       // STEP 6: Finalize state
       if (errors === 0) {
-        this.stateData.lastSyncVersion = manifest.vault.latest_version || 0;
+        this.stateData.lastSyncVersion = Math.max(
+          this.stateData.lastSyncVersion || 0,
+          manifest.vault.latest_version || 0,
+          highestPushedVersion
+        );
       }
       await this.saveState();
 

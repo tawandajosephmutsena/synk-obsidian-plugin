@@ -24,6 +24,7 @@ export interface SynkkSettings {
   ghostFilesEnabled: boolean;
   ghostThresholdMb: number;
   mobileBackgroundRelay: boolean;
+  realtimeCollaboration: boolean;
   ragEnabled: boolean;
   ragUseLocalOllama: boolean;
   ragOllamaUrl: string;
@@ -74,6 +75,7 @@ export const DEFAULT_SETTINGS: SynkkSettings = {
   ghostFilesEnabled: true,
   ghostThresholdMb: 5,
   mobileBackgroundRelay: true,
+  realtimeCollaboration: false,
   ragEnabled: true,
   ragUseLocalOllama: false,
   ragOllamaUrl: 'http://localhost:11434',

@@ -380,6 +380,21 @@ export class SynkkSettingTab extends PluginSettingTab {
         })
       );
 
+    new Setting(containerEl).setName('👥 Real-Time Multiplayer Collaboration').setHeading();
+
+    new Setting(containerEl)
+      .setName('Enable Real-Time Collaboration (CRDT)')
+      .setDesc('Live cursor presence and real-time multiplayer editing with team members. Keep disabled for standard atomic vault sync.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.realtimeCollaboration).onChange(async (val) => {
+          this.plugin.settings.realtimeCollaboration = val;
+          await this.plugin.saveSettings();
+          if (!val && this.plugin.collabRelay?.currentPath && this.plugin.settings.selectedVaultSlug) {
+            await this.plugin.collabRelay.leave(this.plugin.settings.selectedVaultSlug, this.plugin.collabRelay.currentPath);
+          }
+        })
+      );
+
     new Setting(containerEl).setName('Pre-Flight & Migration Wizard').setHeading();
 
     new Setting(containerEl)

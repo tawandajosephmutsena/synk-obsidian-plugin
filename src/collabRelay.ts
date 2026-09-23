@@ -1,4 +1,4 @@
-import { requestUrl, TFile } from 'obsidian';
+import { MarkdownView, requestUrl, TFile } from 'obsidian';
 import * as Y from 'yjs';
 import { yCollab } from 'y-codemirror.next';
 import type { EditorView } from '@codemirror/view';
@@ -34,7 +34,7 @@ export class CollabRelayClient {
   isDirty = false;
   isFlushing = false;
 
-  private activeViews: Set<EditorView> = new Set();
+  currentView: EditorView | null = null;
   private listeners: Array<(peers: CollabPeer[]) => void> = [];
 
   constructor(plugin: SynkkPlugin) {
@@ -42,23 +42,61 @@ export class CollabRelayClient {
     this.peerId = `obsidian_${Math.random().toString(36).substring(2, 10)}`;
   }
 
+  getViewForPath(path: string): EditorView | null {
+    if (!this.plugin?.app?.workspace) return null;
+    const leaves = this.plugin.app.workspace.getLeavesOfType('markdown');
+    for (const leaf of leaves) {
+      const view = leaf.view;
+      if (view instanceof MarkdownView && view.file && view.file.path === path) {
+        const cm = (view.editor as any)?.cm as EditorView | undefined;
+        if (cm) return cm;
+      }
+    }
+    return null;
+  }
+
+  isViewForCurrentPath(view: EditorView): boolean {
+    if (!this.currentPath) return false;
+    if (this.currentView === view) return true;
+    const target = this.getViewForPath(this.currentPath);
+    return target === view;
+  }
+
   registerEditorView(view: EditorView): void {
-    this.activeViews.add(view);
-    if (this.ytext && this.awareness && this.undoManager) {
-      try {
-        view.dispatch({
-          effects: collabCompartment.reconfigure(
-            yCollab(this.ytext, this.awareness, { undoManager: this.undoManager })
-          ),
-        });
-      } catch (e) {
-        console.error('Failed to attach yCollab to new view:', e);
+    if (!this.plugin.settings?.realtimeCollaboration) return;
+    if (this.currentPath && this.ytext && this.awareness && this.undoManager) {
+      if (this.isViewForCurrentPath(view)) {
+        this.currentView = view;
+        this.attachToView(view);
       }
     }
   }
 
   unregisterEditorView(view: EditorView): void {
-    this.activeViews.delete(view);
+    if (this.currentView === view) {
+      try {
+        view.dispatch({
+          effects: collabCompartment.reconfigure([]),
+        });
+      } catch {
+        // View may already be destroyed
+      }
+      this.currentView = null;
+    }
+  }
+
+  private attachToView(view: EditorView): void {
+    if (!this.plugin.settings?.realtimeCollaboration) return;
+    if (!this.ytext || !this.awareness || !this.undoManager) return;
+    try {
+      view.dispatch({
+        effects: collabCompartment.reconfigure(
+          yCollab(this.ytext, this.awareness, { undoManager: this.undoManager })
+        ),
+      });
+    } catch (e) {
+      console.error('Failed to attach yCollab to view:', e);
+    }
   }
 
   onPeersChange(fn: (peers: CollabPeer[]) => void): () => void {
@@ -89,6 +127,7 @@ export class CollabRelayClient {
   }
 
   async join(vaultSlug: string, path: string): Promise<void> {
+    if (!this.plugin.settings?.realtimeCollaboration) return;
     if (!this.plugin.settings.serverUrl || !this.plugin.settings.deviceToken) return;
 
     if (this.currentPath && this.currentPath !== path) {
@@ -171,24 +210,6 @@ export class CollabRelayClient {
       }
     } catch {
       // File read error
-    }
-
-    // Observe text mutations to debounce snapshot flush
-    this.ytext.observe((_event, transaction) => {
-      this.isDirty = true;
-      this.scheduleSnapshotFlush(vaultSlug, path);
-    });
-
-    // Reconfigure CodeMirror views to bind yCollab
-    const collabExt = yCollab(this.ytext, this.awareness, { undoManager: this.undoManager });
-    for (const view of this.activeViews) {
-      try {
-        view.dispatch({
-          effects: collabCompartment.reconfigure(collabExt),
-        });
-      } catch (e) {
-        console.error('Failed to bind yCollab to view:', e);
-      }
     }
 
     // Setup transport for SynkkYjsProvider
@@ -292,6 +313,19 @@ export class CollabRelayClient {
         this.ytext!.insert(0, localFileText!);
       }, this.provider.providerOrigin);
     }
+
+    // Observe text mutations to debounce snapshot flush
+    this.ytext.observe(() => {
+      this.isDirty = true;
+      this.scheduleSnapshotFlush(vaultSlug, path);
+    });
+
+    // Attach yCollab only to the specific view for this note
+    const targetView = this.getViewForPath(path);
+    if (targetView) {
+      this.currentView = targetView;
+      this.attachToView(targetView);
+    }
   }
 
   scheduleSnapshotFlush(vaultSlug: string, path: string): void {
@@ -337,13 +371,25 @@ export class CollabRelayClient {
     }
 
     // Reconfigure CodeMirror views to empty extension
-    for (const view of this.activeViews) {
+    if (this.currentView) {
       try {
-        view.dispatch({
+        this.currentView.dispatch({
           effects: collabCompartment.reconfigure([]),
         });
       } catch {
         // view might already be destroyed
+      }
+      this.currentView = null;
+    } else {
+      const targetView = this.getViewForPath(path);
+      if (targetView) {
+        try {
+          targetView.dispatch({
+            effects: collabCompartment.reconfigure([]),
+          });
+        } catch {
+          // view might already be destroyed
+        }
       }
     }
 

@@ -100,4 +100,8 @@ test('reconciles remote pull decisions and conflicts cleanly', () => {
   // Case 5: Untracked file already on disk when remote file arrives -> conflict
   const case5 = reconcileRemotePull({ sha256: 'cipher-v1' }, 'existing-untracked', null);
   assert.deepEqual(case5, { needsDownload: true, isConflict: true });
+
+  // Case 6: Untracked file already on disk with identical hash to remote -> no download, no conflict
+  const case6 = reconcileRemotePull({ sha256: 'identical-hash' }, 'identical-hash', null);
+  assert.deepEqual(case6, { needsDownload: false, isConflict: false });
 });

@@ -87,30 +87,49 @@ export function createCollabExtension(plugin: SynkkPlugin): Extension {
 
         constructor(view: EditorView) {
           this.view = view;
+          if (!plugin.settings?.realtimeCollaboration) {
+            this.decorations = Decoration.none;
+            return;
+          }
+
           plugin.collabRelay?.registerEditorView(view);
 
-          this.decorations = buildCollabDecorations(
-            view,
-            plugin.collabRelay?.activePeers || []
+          const isCollabActive = Boolean(
+            plugin.collabRelay?.isViewForCurrentPath(view)
           );
+
+          this.decorations = isCollabActive
+            ? buildCollabDecorations(view, plugin.collabRelay?.activePeers || [])
+            : Decoration.none;
 
           if (plugin.collabRelay) {
             this.unsubscribePeers = plugin.collabRelay.onPeersChange((peers) => {
-              this.decorations = buildCollabDecorations(view, peers);
+              const active = Boolean(
+                plugin.settings?.realtimeCollaboration &&
+                plugin.collabRelay?.isViewForCurrentPath(view)
+              );
+              this.decorations = active
+                ? buildCollabDecorations(view, peers)
+                : Decoration.none;
               view.requestMeasure();
             });
           }
         }
 
         update(update: ViewUpdate): void {
+          if (!plugin.settings?.realtimeCollaboration) return;
+
+          const isCollabActive = Boolean(
+            plugin.collabRelay?.isViewForCurrentPath(update.view)
+          );
+
           if (update.docChanged) {
-            this.decorations = buildCollabDecorations(
-              update.view,
-              plugin.collabRelay?.activePeers || []
-            );
+            this.decorations = isCollabActive
+              ? buildCollabDecorations(update.view, plugin.collabRelay?.activePeers || [])
+              : Decoration.none;
           }
 
-          if (update.selectionSet || update.docChanged) {
+          if (isCollabActive && (update.selectionSet || update.docChanged)) {
             const head = update.state.selection.main.head;
             const line = update.state.doc.lineAt(head);
             const col = head - line.from;
@@ -119,7 +138,9 @@ export function createCollabExtension(plugin: SynkkPlugin): Extension {
         }
 
         destroy(): void {
-          plugin.collabRelay?.unregisterEditorView(this.view);
+          if (plugin.settings?.realtimeCollaboration) {
+            plugin.collabRelay?.unregisterEditorView(this.view);
+          }
           if (this.unsubscribePeers) {
             this.unsubscribePeers();
             this.unsubscribePeers = null;
