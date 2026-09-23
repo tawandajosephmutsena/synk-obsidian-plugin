@@ -51,6 +51,7 @@ export class SynkkYjsProvider {
   connected: boolean;
   awareness: SynkkAwareness | null;
   latestSequence: number;
+  providerOrigin: object;
 
   constructor(options: SynkkYjsProviderOptions);
 
