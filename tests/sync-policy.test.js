@@ -53,6 +53,42 @@ test('keeps Obsidian configuration device-local unless its specific category is 
   assert.equal(shouldSyncPath('.obsidian/synkk-state.json', configuredSettings), false);
 });
 
+test('always excludes Synkk plugin credentials under the default full plugin suite', () => {
+  const settings = { ...defaultSettings, syncPluginSuite: true };
+
+  assert.equal(shouldSyncPath('.obsidian/plugins/synkk-sync/data.json', settings), false);
+  assert.equal(shouldSyncPath('.obsidian/plugins/synkk-sync/data.sync-conflict-1725739200000.json', settings), false);
+  assert.equal(shouldSyncPath('.obsidian/plugins/synkk-sync/data.json.bak', settings), false);
+  assert.equal(shouldSyncPath('.obsidian/plugins/Synkk-Sync/DATA.JSON', settings), false);
+  assert.equal(shouldSyncPath('.custom-config/plugins/synkk-sync/data.json', { ...settings, configDir: '.custom-config' }), false);
+  assert.equal(shouldSyncPath('.obsidian/synkk-state-12345678-vault.json', settings), false);
+  assert.equal(shouldSyncPath('.obsidian/plugins/synkk-sync/main.js', settings), true);
+  assert.equal(shouldSyncPath('.obsidian/plugins/calendar/data.json', settings), true);
+});
+
+test('filters Synkk plugin credentials from incoming manifest files and deletions', () => {
+  const settings = { ...defaultSettings, syncPluginSuite: true };
+  const manifest = {
+    files: [
+      { path: '.obsidian/plugins/synkk-sync/data.json' },
+      { path: '.obsidian/plugins/calendar/data.json' },
+      { path: 'Notes/Launch.md' },
+    ],
+    deleted: [
+      { path: '.obsidian/plugins/synkk-sync/data.json' },
+      { path: 'Notes/Archive.md' },
+    ],
+  };
+
+  assert.deepEqual(manifest.files.filter((file) => shouldSyncPath(file.path, settings)).map((file) => file.path), [
+    '.obsidian/plugins/calendar/data.json',
+    'Notes/Launch.md',
+  ]);
+  assert.deepEqual(manifest.deleted.filter((file) => shouldSyncPath(file.path, settings)).map((file) => file.path), [
+    'Notes/Archive.md',
+  ]);
+});
+
 test('syncs full plugin suite and themes while filtering desktop-only plugins on mobile', () => {
   const desktopSuite = {
     ...defaultSettings,

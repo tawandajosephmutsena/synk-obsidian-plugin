@@ -183,6 +183,7 @@ export function getDevicePlatformInfo(
 
 import type SynkkPlugin from './main';
 import type { BroadcastingConfig } from './types';
+import { applyPairingVaultSelection } from './pairing-selection';
 
 interface PairingResult {
   server_url: string;
@@ -228,9 +229,7 @@ export async function handlePairingProtocol(plugin: SynkkPlugin, params: Record<
     // Save newly issued scoped token and server configuration
     plugin.settings.serverUrl = result.server_url;
     plugin.settings.deviceToken = result.plain_token;
-    if (result.vault_slug) {
-      plugin.settings.selectedVaultSlug = result.vault_slug;
-    }
+    const pairingVault = applyPairingVaultSelection(plugin.settings, result.vault_slug);
     if (result.broadcasting) {
       plugin.settings.broadcasting = result.broadcasting;
     }
@@ -249,15 +248,15 @@ export async function handlePairingProtocol(plugin: SynkkPlugin, params: Record<
       }
       const scopeLabel = result.access_scope === 'read_only' ? 'Read-Only' : 'Read & Write';
       new ObsNotice(
-        `⚡ Synkk Paired Successfully!\nConnected to "${auth.team.name}" as ${auth.user.name} (${scopeLabel}).\nTarget Vault: ${result.vault_slug || 'Default'}`,
+        `⚡ Synkk Paired Successfully!\nConnected to "${auth.team.name}" as ${auth.user.name} (${scopeLabel}).\n${pairingVault.description}`,
         9000
       );
     } catch {
-      new ObsNotice(`⚡ Synkk paired! Linked to team ${result.team_slug || 'workspace'}.`, 6000);
+      new ObsNotice(`⚡ Synkk paired! Linked to team ${result.team_slug || 'workspace'}. ${pairingVault.description}`, 6000);
     }
 
     // Trigger initial sync
-    if (plugin.syncEngine) {
+    if (plugin.syncEngine && pairingVault.hasSelectedVault) {
       void plugin.syncEngine.sync();
     }
   } catch (err: unknown) {

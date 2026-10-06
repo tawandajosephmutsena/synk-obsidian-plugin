@@ -63,6 +63,11 @@ function isObsidianPathAllowed(path, settings = {}) {
     return false;
   }
 
+  // Synkk's own plugin data contains device credentials and stays local.
+  if (path.toLowerCase().startsWith(`${configDir}/plugins/synkk-sync/data.`.toLowerCase())) {
+    return false;
+  }
+
   const excludedPaths = getExcludedConfigPaths(configDir);
   if (excludedPaths.some((prefix) => matchesPrefix(path, prefix))) {
     return false;
