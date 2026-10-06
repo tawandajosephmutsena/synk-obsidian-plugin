@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.12] - 2026-10-06
+
+### Fixed
+- **Device credential privacy:** Always keep Synkk's own plugin data files, including credential backups and conflict copies, out of outgoing and incoming vault sync when full plugin suite sync is enabled.
+- **First-run pairing:** Clear a prior vault selection when a pairing session has no target vault, explain the next setup step, and wait to sync until a vault is selected.
+
 ## [1.0.11] - 2026-09-23
 
 ### Fixed
