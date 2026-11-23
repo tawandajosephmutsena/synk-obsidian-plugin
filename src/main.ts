@@ -1,4 +1,6 @@
 import { addIcon, Notice, Plugin, TFile } from 'obsidian';
+import { AiProposalsModal } from './aiProposalsModal';
+import { SYNKK_AI_VIEW_TYPE, SynkkAiSidebarView } from './aiSidebarView';
 import { SynkkApiClient } from './apiClient';
 import { BackgroundSyncRelay } from './backgroundRelay';
 import { createCollabExtension } from './collabExtension';
@@ -7,6 +9,7 @@ import { ConflictResolverModal } from './conflictResolver';
 import { SynkkEchoManager } from './echoManager';
 import { GhostFileManager } from './ghostFiles';
 import { SYNKK_OCTOPUS_ICON } from './icons';
+import { formatProposalsBadgeText } from './localAiCore.js';
 import { VaultCopilotModal } from './ragModal';
 import { SynkkSettingTab } from './settings';
 import { SynkkSyncEngine } from './syncEngine';
@@ -20,8 +23,10 @@ export default class SynkkPlugin extends Plugin {
   backgroundRelay: BackgroundSyncRelay;
   echoManager: SynkkEchoManager;
   private statusBarEl: HTMLElement;
+  private proposalsBadgeEl: HTMLElement | null = null;
   private syncIntervalId: number | null = null;
   private debouncedSyncTimeout: number | null = null;
+  private lastBadgeRefreshAt = 0;
 
   async onload() {
     addIcon('synkk-octopus', SYNKK_OCTOPUS_ICON);
@@ -92,6 +97,9 @@ export default class SynkkPlugin extends Plugin {
       console.debug('Synkk: Cold-start URL check skipped:', e);
     }
 
+    // Register Dockable AI Sidebar View
+    this.registerView(SYNKK_AI_VIEW_TYPE, (leaf) => new SynkkAiSidebarView(leaf, this));
+
     // Status bar indicator
     this.statusBarEl = this.addStatusBarItem();
     this.statusBarEl.addClass('synkk-status-bar');
@@ -105,6 +113,15 @@ export default class SynkkPlugin extends Plugin {
       void this.syncEngine.sync();
     });
 
+    // Status bar AI Pending Proposals Badge (server mode only)
+    this.proposalsBadgeEl = this.addStatusBarItem();
+    this.proposalsBadgeEl.addClass('synkk-proposals-badge');
+    this.proposalsBadgeEl.style.display = 'none';
+    this.proposalsBadgeEl.setAttribute('title', 'Synkk AI: Review pending change proposals');
+    this.proposalsBadgeEl.onClickEvent(() => {
+      new AiProposalsModal(this.app, this).open();
+    });
+
     // Left Ribbon Icon (Sync Now)
     this.addRibbonIcon('synkk-octopus', 'Synkk: Sync Now', async () => {
       await this.syncEngine.sync();
@@ -115,13 +132,9 @@ export default class SynkkPlugin extends Plugin {
       new ConflictResolverModal(this.app, this).open();
     });
 
-    // Left Ribbon Icon (Vault Copilot)
-    this.addRibbonIcon('sparkles', 'Synkk: Ask Vault Copilot (RAG)', () => {
-      if (!this.settings.selectedVaultSlug) {
-        new Notice('Synkk: Please select a target vault in settings first.');
-        return;
-      }
-      new VaultCopilotModal(this.app, this.apiClient, this.settings.selectedVaultSlug).open();
+    // Left Ribbon Icon (Synkk AI Sidebar)
+    this.addRibbonIcon('sparkles', 'Synkk AI: Open Copilot Sidebar', () => {
+      void this.activateAiSidebar();
     });
 
     // Command: Sync Now
@@ -276,6 +289,51 @@ export default class SynkkPlugin extends Plugin {
       },
     });
 
+    // Command: Open Dockable AI Sidebar
+    this.addCommand({
+      id: 'open-ai-sidebar',
+      name: 'Synkk AI: Open Copilot Sidebar',
+      callback: () => {
+        void this.activateAiSidebar();
+      },
+    });
+
+    // Command: Open AI Change Proposals Inbox
+    this.addCommand({
+      id: 'open-ai-proposals',
+      name: 'Synkk AI: Open Change Inbox (Proposals)',
+      callback: () => {
+        new AiProposalsModal(this.app, this).open();
+      },
+    });
+
+    // Command: Run Vault Gardener
+    this.addCommand({
+      id: 'run-vault-gardener',
+      name: 'Synkk AI: Run Vault Gardener',
+      callback: async () => {
+        if (this.settings.e2eeEnabled) {
+          new Notice('Synkk Gardener is unavailable in Zero-Knowledge E2EE mode.');
+          return;
+        }
+        if (!this.settings.selectedVaultSlug) {
+          new Notice('Synkk: Please select a target vault in settings first.');
+          return;
+        }
+        new Notice('Synkk: Running Vault Gardener scan...');
+        try {
+          const res = await this.apiClient.runGardener(this.settings.selectedVaultSlug);
+          new Notice(
+            `Synkk Gardener scanned ${res.files_scanned} notes and created ${res.proposals_created} proposal(s).`
+          );
+          await this.refreshProposalsBadge();
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          new Notice(`Synkk Gardener failed: ${msg}`);
+        }
+      },
+    });
+
     // Command: Run Pre-Flight Vault Scan & Migration Wizard
     this.addCommand({
       id: 'open-migration-wizard',
@@ -298,6 +356,11 @@ export default class SynkkPlugin extends Plugin {
         void this.syncEngine.sync();
       }, 2000);
     }
+
+    // Check pending AI proposals badge quietly after startup
+    window.setTimeout(() => {
+      void this.refreshProposalsBadge();
+    }, 3500);
   }
 
   onunload() {
@@ -390,6 +453,84 @@ export default class SynkkPlugin extends Plugin {
         this.statusBarEl.removeClass('is-error');
       }
       this.statusBarEl.setText(status);
+      if (status !== 'Synkk: Ready' && !status.toLowerCase().includes('error')) {
+        const now = Date.now();
+        if (now - this.lastBadgeRefreshAt > 5000) {
+          this.lastBadgeRefreshAt = now;
+          void this.refreshProposalsBadge();
+        }
+      }
+    }
+  }
+
+  public async activateAiSidebar(): Promise<void> {
+    const existing = this.app.workspace.getLeavesOfType(SYNKK_AI_VIEW_TYPE);
+    let targetLeaf = existing[0] ?? null;
+
+    if (!targetLeaf) {
+      const rightLeaf = this.app.workspace.getRightLeaf(false);
+      if (rightLeaf) {
+        await rightLeaf.setViewState({
+          type: SYNKK_AI_VIEW_TYPE,
+          active: true,
+        });
+        targetLeaf = rightLeaf;
+      }
+    }
+
+    if (targetLeaf) {
+      this.app.workspace.revealLeaf(targetLeaf);
+      if (targetLeaf.view instanceof SynkkAiSidebarView) {
+        void targetLeaf.view.refreshState();
+      }
+    } else if (this.settings.selectedVaultSlug) {
+      new VaultCopilotModal(this.app, this.apiClient, this.settings.selectedVaultSlug).open();
+    }
+  }
+
+  public refreshAiViews(): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(SYNKK_AI_VIEW_TYPE)) {
+      if (leaf.view instanceof SynkkAiSidebarView) {
+        void leaf.view.refreshState();
+      }
+    }
+    void this.refreshProposalsBadge();
+  }
+
+  public async refreshProposalsBadge(): Promise<void> {
+    if (!this.proposalsBadgeEl) {
+      return;
+    }
+
+    if (
+      this.settings.e2eeEnabled ||
+      !this.settings.aiShowProposalsBadge ||
+      !this.settings.ragEnabled ||
+      !this.settings.selectedVaultSlug ||
+      !this.settings.deviceToken
+    ) {
+      this.proposalsBadgeEl.style.display = 'none';
+      this.proposalsBadgeEl.setText('');
+      return;
+    }
+
+    try {
+      const res = await this.apiClient.listAiProposals(
+        this.settings.selectedVaultSlug,
+        'pending',
+        false
+      );
+      const count = res.proposals?.length ?? 0;
+      const badge = formatProposalsBadgeText(count);
+      if (!badge) {
+        this.proposalsBadgeEl.style.display = 'none';
+        this.proposalsBadgeEl.setText('');
+      } else {
+        this.proposalsBadgeEl.style.display = '';
+        this.proposalsBadgeEl.setText(badge);
+      }
+    } catch {
+      // Keep status bar clean if server is temporarily unreachable
     }
   }
 }

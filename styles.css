@@ -771,4 +771,382 @@
   border-top: 1px solid var(--background-modifier-border);
 }
 
+/* Status Bar Proposals Badge */
+.synkk-proposals-badge {
+  cursor: pointer;
+  color: var(--interactive-accent);
+  font-weight: 600;
+}
+
+/* Dockable Synkk AI Sidebar */
+.synkk-ai-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 8px;
+  gap: 8px;
+}
+
+.synkk-ai-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.synkk-ai-title-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.synkk-ai-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.synkk-ai-mode-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.synkk-ai-mode-pill.is-e2ee {
+  background: rgba(var(--color-green-rgb, 46, 160, 67), 0.16);
+  color: var(--color-green, #2ea043);
+}
+
+.synkk-ai-mode-pill.is-cloud {
+  background: var(--background-modifier-hover);
+  color: var(--text-accent);
+}
+
+.synkk-ai-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.synkk-ai-thread-select {
+  flex: 1 1 120px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.synkk-ai-btn {
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.synkk-ai-banner {
+  font-size: 11px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+}
+
+.synkk-ai-banner.is-e2ee {
+  border-left: 3px solid var(--color-green, #2ea043);
+}
+
+.synkk-ai-banner.is-warning {
+  border-left: 3px solid var(--color-orange, #d97706);
+}
+
+.synkk-ai-banner.is-error {
+  border-left: 3px solid var(--text-error);
+  color: var(--text-error);
+}
+
+.synkk-ai-messages {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 2px;
+}
+
+.synkk-ai-empty {
+  padding: 16px 10px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.synkk-ai-msg {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--background-primary);
+}
+
+.synkk-ai-msg.is-user {
+  background: var(--background-secondary);
+}
+
+.synkk-ai-msg-role {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.synkk-ai-msg-body {
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.synkk-ai-stream-status {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.synkk-ai-citations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--background-modifier-border);
+}
+
+.synkk-ai-citations-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.synkk-ai-citation-chip {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-accent);
+  cursor: pointer;
+}
+
+.synkk-ai-proposals-link {
+  margin-top: 8px;
+}
+
+.synkk-ai-msg-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.synkk-ai-action-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+.synkk-ai-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.synkk-ai-context-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.synkk-ai-context-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.synkk-ai-active-note {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.synkk-ai-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.synkk-ai-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 60px;
+  font-size: 12px;
+}
+
+.synkk-ai-send-btn {
+  align-self: flex-end;
+}
+
+/* AI Proposals Modal */
+.synkk-proposals-modal .synkk-proposals-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.synkk-proposals-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.synkk-proposals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.synkk-proposal-card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--background-secondary);
+}
+
+.synkk-proposal-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.synkk-proposal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.synkk-proposal-action-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.synkk-proposal-source-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+}
+
+.synkk-proposal-move-dest {
+  color: var(--text-accent);
+}
+
+.synkk-proposal-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.synkk-proposal-stale-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-orange, #d97706);
+}
+
+.synkk-proposal-status-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.synkk-proposal-path {
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.synkk-proposal-rationale {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.synkk-proposal-diff,
+.synkk-proposal-diff-pre {
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 8px;
+  max-height: 200px;
+  overflow: auto;
+  margin-bottom: 8px;
+}
+
+.synkk-diff-line.is-add {
+  color: var(--color-green, #2ea043);
+}
+
+.synkk-diff-line.is-remove {
+  color: var(--text-error);
+}
+
+.synkk-diff-line.is-conflict {
+  color: var(--color-orange, #d97706);
+  font-weight: 600;
+}
+
+.synkk-proposal-editor-details {
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.synkk-proposal-override-input {
+  width: 100%;
+  min-height: 120px;
+  margin-top: 6px;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+}
+
+.synkk-proposal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Smart Merge Callout */
+.synkk-smart-merge-summary {
+  font-size: 12px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  border-left: 3px solid var(--interactive-accent);
+}
+
+
 

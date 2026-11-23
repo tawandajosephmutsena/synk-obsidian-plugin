@@ -1,4 +1,6 @@
 import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem } from 'obsidian';
+import { AiProposalsModal } from './aiProposalsModal';
+import { LocalAiEngine } from './localAiEngine';
 import type SynkkPlugin from './main';
 
 
@@ -174,6 +176,7 @@ export class SynkkSettingTab extends PluginSettingTab {
       dropdown.onChange(async (slug) => {
         this.plugin.settings.selectedVaultSlug = slug;
         await this.plugin.saveSettings();
+        this.plugin.refreshAiViews();
         new Notice(`Target vault set to: ${slug}`);
       });
     });
@@ -282,6 +285,7 @@ export class SynkkSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.e2eeEnabled).onChange(async (val) => {
           this.plugin.settings.e2eeEnabled = val;
           await this.plugin.saveSettings();
+          this.plugin.refreshAiViews();
         })
       );
 
@@ -330,6 +334,7 @@ export class SynkkSettingTab extends PluginSettingTab {
             this.plugin.settings.e2eeEnabled = true;
             this.plugin.settings.e2eeSalt = salt;
             await this.plugin.saveSettings();
+            this.plugin.refreshAiViews();
 
             new Notice('🔒 Zero-Knowledge E2EE successfully enabled on vault!');
             this.renderSettings();
@@ -485,6 +490,114 @@ export class SynkkSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.ragEnabled).onChange(async (val) => {
           this.plugin.settings.ragEnabled = val;
           await this.plugin.saveSettings();
+          this.plugin.refreshAiViews();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('Synkk AI Workspace & Change Inbox')
+      .setDesc('Open the dockable AI sidebar or review pending agentic proposals from Vault Gardener.')
+      .addButton((btn) =>
+        btn.setButtonText('Open AI Sidebar').onClick(() => {
+          void this.plugin.activateAiSidebar();
+        })
+      )
+      .addButton((btn) =>
+        btn.setButtonText('Review AI Inbox').onClick(() => {
+          new AiProposalsModal(this.app, this.plugin).open();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('Show Pending AI Proposals Badge')
+      .setDesc('Display pending AI change proposals count in the Obsidian status bar (disabled automatically in E2EE mode).')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.aiShowProposalsBadge).onChange(async (val) => {
+          this.plugin.settings.aiShowProposalsBadge = val;
+          await this.plugin.saveSettings();
+          void this.plugin.refreshProposalsBadge();
+        })
+      );
+
+    new Setting(containerEl).setName('Zero-Knowledge E2EE Local AI').setHeading();
+
+    new Setting(containerEl)
+      .setName('Local AI Provider')
+      .setDesc('Used automatically when E2EE is enabled so plaintext notes never leave this device.')
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption('ollama', 'Ollama (Local)')
+          .addOption('openai_compatible', 'OpenAI-Compatible (LM Studio / LocalAI / BYOK)')
+          .setValue(this.plugin.settings.localAiProvider)
+          .onChange(async (val) => {
+            this.plugin.settings.localAiProvider =
+              val === 'openai_compatible' ? 'openai_compatible' : 'ollama';
+            await this.plugin.saveSettings();
+            this.plugin.refreshAiViews();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Local AI Base URL')
+      .setDesc('Base endpoint URL for Ollama (e.g. http://localhost:11434) or an OpenAI-compatible server.')
+      .addText((text) =>
+        text
+          .setPlaceholder('http://localhost:11434')
+          .setValue(this.plugin.settings.localAiBaseUrl)
+          .onChange(async (val) => {
+            this.plugin.settings.localAiBaseUrl = val.trim() || 'http://localhost:11434';
+            if (this.plugin.settings.localAiProvider === 'ollama') {
+              this.plugin.settings.ragOllamaUrl = this.plugin.settings.localAiBaseUrl;
+            }
+            await this.plugin.saveSettings();
+            this.plugin.refreshAiViews();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Local AI Model')
+      .setDesc('Model identifier to invoke for E2EE chat and local Smart Conflict Merge.')
+      .addText((text) =>
+        text
+          .setPlaceholder('llama3.2')
+          .setValue(this.plugin.settings.localAiModel)
+          .onChange(async (val) => {
+            this.plugin.settings.localAiModel = val.trim() || 'llama3.2';
+            this.plugin.settings.ragOllamaModel = this.plugin.settings.localAiModel;
+            await this.plugin.saveSettings();
+            this.plugin.refreshAiViews();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Local AI API Key (Optional)')
+      .setDesc('Optional Bearer API key when using an OpenAI-compatible BYOK endpoint.')
+      .addText((text) => {
+        text.inputEl.type = 'password';
+        return text
+          .setPlaceholder('sk-...')
+          .setValue(this.plugin.settings.localAiApiKey)
+          .onChange(async (val) => {
+            this.plugin.settings.localAiApiKey = val.trim();
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Test Local AI Connection')
+      .setDesc('Verify connectivity and inspect available models on your configured Local AI endpoint.')
+      .addButton((btn) =>
+        btn.setButtonText('Test Local AI').onClick(async () => {
+          btn.setDisabled(true);
+          btn.setButtonText('Testing...');
+          try {
+            const engine = new LocalAiEngine(this.app, () => this.plugin.settings);
+            const result = await engine.testConnection();
+            new Notice(result.message, 6000);
+          } finally {
+            btn.setDisabled(false);
+            btn.setButtonText('Test Local AI');
+          }
         })
       );
 

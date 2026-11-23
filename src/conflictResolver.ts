@@ -1,4 +1,5 @@
 import { App, Modal, Notice, Setting } from 'obsidian';
+import { LocalAiEngine } from './localAiEngine';
 import type SynkkPlugin from './main';
 
 export interface ConflictPair {
@@ -173,6 +174,87 @@ export class ConflictResolverModal extends Modal {
       this.mergedText = `${this.canonicalText}\n\n---\n\n${this.conflictText}`;
       textArea.value = this.mergedText;
     };
+
+    const aiSummaryEl = container.createDiv({ cls: 'synkk-smart-merge-summary' });
+    aiSummaryEl.style.display = 'none';
+
+    if (this.plugin.settings.ragEnabled) {
+      const instructionsRow = container.createDiv({
+        attr: { style: 'margin-bottom: 10px;' },
+      });
+      const instructionsInput = instructionsRow.createEl('input', {
+        type: 'text',
+        attr: {
+          placeholder: 'Optional AI merge instructions (e.g. keep pricing bullets from conflict)...',
+          style: 'width: 100%; font-size: 12px; padding: 6px 8px;',
+        },
+      });
+
+      const smartMergeBtn = btnRow.createEl('button', { text: '✨ Smart Merge with AI' });
+      smartMergeBtn.onclick = async () => {
+        const conflictPath = this.selectedConflict?.conflictPath ?? '';
+        const canonicalPath = this.selectedConflict?.canonicalPath ?? '';
+
+        if (!conflictPath) {
+          new Notice('Synkk: Select a conflict first before running Smart Merge.');
+          return;
+        }
+
+        const instructions = instructionsInput.value.trim() || undefined;
+        smartMergeBtn.disabled = true;
+        smartMergeBtn.setText('Merging with AI...');
+        aiSummaryEl.style.display = 'block';
+        aiSummaryEl.setText(
+          this.plugin.settings.e2eeEnabled
+            ? '🔒 Running Smart Merge locally with E2EE Local AI...'
+            : '☁️ Running Smart Merge with Synkk AI...'
+        );
+
+        try {
+          if (this.plugin.settings.e2eeEnabled) {
+            const engine = new LocalAiEngine(this.app, () => this.plugin.settings);
+            const result = await engine.smartMergeLocal({
+              conflictPath,
+              canonicalPath: canonicalPath || undefined,
+              canonicalText: this.canonicalText,
+              conflictText: this.conflictText,
+              instructions,
+            });
+            this.mergedText = result.merged_content;
+            textArea.value = this.mergedText;
+            aiSummaryEl.setText(`🔒 Local E2EE Merge (${result.model ?? 'local'}): ${result.summary ?? 'Done'}`);
+          } else {
+            const slug = this.plugin.settings.selectedVaultSlug;
+            if (!slug) {
+              throw new Error('Select a target vault in Synkk settings first.');
+            }
+            const result = await this.plugin.apiClient.smartMergeConflict(slug, {
+              conflict_path: conflictPath,
+              canonical_path: canonicalPath || undefined,
+              instructions,
+              canonical_content: this.canonicalText,
+              conflict_content: this.conflictText,
+            });
+            this.mergedText = result.merged_content;
+            textArea.value = this.mergedText;
+            const summary = result.summary ?? result.explanation ?? 'Merged both versions.';
+            aiSummaryEl.setText(
+              result.had_unmerged_markers
+                ? `☁️ Synkk Smart Merge (partial — review remaining conflict markers): ${summary}`
+                : `☁️ Synkk Smart Merge: ${summary}`
+            );
+          }
+          new Notice('Synkk: AI Smart Merge preview ready. Review before applying.');
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          aiSummaryEl.setText(`Smart Merge failed: ${msg}`);
+          new Notice(`Synkk Smart Merge failed: ${msg}`);
+        } finally {
+          smartMergeBtn.disabled = false;
+          smartMergeBtn.setText('✨ Smart Merge with AI');
+        }
+      };
+    }
 
     // Reconciled Preview Textarea
     container.createEl('label', {

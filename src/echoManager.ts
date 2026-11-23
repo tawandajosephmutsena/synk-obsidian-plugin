@@ -1,5 +1,6 @@
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
+import { buildApiUrl } from './localAiCore.js';
 import type SynkkPlugin from './main';
 import { BroadcastingConfig } from './types';
 
@@ -58,7 +59,7 @@ export function resolveEchoConfig(settings: {
     wssPort: port || (forceTLS ? 443 : 80),
     forceTLS,
     enabledTransports: ['ws', 'wss'],
-    authEndpoint: `${baseUrl}/broadcasting/auth`,
+    authEndpoint: buildApiUrl(baseUrl, '/broadcasting/auth'),
     auth: {
       headers: {
         Authorization: `Bearer ${token}`,

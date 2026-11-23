@@ -1,5 +1,24 @@
 import { Platform, requestUrl, RequestUrlParam, RequestUrlResponse } from 'obsidian';
-import { ManifestResponse, RagQueryResponse, RagSearchResult, RagStatusResponse, RemoteVault, TransportStatus, UploadResponse, VaultPreflightRequest, VaultPreflightResponse, VerifyAuthResponse } from './types';
+import { buildApiUrl } from './localAiCore.js';
+import {
+  AiGardenerRunResponse,
+  AiMessageItem,
+  AiProposalItem,
+  AiRunItem,
+  AiSendMessageResponse,
+  AiSmartMergeResponse,
+  AiThreadItem,
+  ManifestResponse,
+  RagQueryResponse,
+  RagSearchResult,
+  RagStatusResponse,
+  RemoteVault,
+  TransportStatus,
+  UploadResponse,
+  VaultPreflightRequest,
+  VaultPreflightResponse,
+  VerifyAuthResponse,
+} from './types';
 
 export class SynkkHttpError extends Error {
   status: number;
@@ -586,5 +605,148 @@ export class SynkkApiClient {
       }
       throw err;
     }
+  }
+
+  private async aiJsonRequest<T>(
+    method: 'GET' | 'POST' | 'DELETE',
+    path: string,
+    body?: unknown
+  ): Promise<T> {
+    const url = buildApiUrl(this.serverUrl, path);
+    const headers: Record<string, string> = {
+      ...this.getHeaders(),
+    };
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    const res: RequestUrlResponse = await this.request({
+      url,
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+
+    const json = res.json as Record<string, unknown> | null;
+    if (res.status >= 400) {
+      const serverMsg =
+        (json && typeof json.message === 'string' && json.message) ||
+        (json && typeof json.error === 'string' && json.error) ||
+        res.text ||
+        `HTTP ${res.status}`;
+      throw new SynkkHttpError(`HTTP ${res.status}: ${serverMsg}`, res.status);
+    }
+
+    return (json ?? {}) as T;
+  }
+
+  public async listAiThreads(vaultSlug: string): Promise<{ status: string; threads: AiThreadItem[] }> {
+    return this.aiJsonRequest('GET', `/vaults/${encodeURIComponent(vaultSlug)}/ai/threads`);
+  }
+
+  public async createAiThread(
+    vaultSlug: string,
+    payload: { title?: string; is_shared_with_team?: boolean } = {}
+  ): Promise<{ status: string; thread: AiThreadItem }> {
+    return this.aiJsonRequest('POST', `/vaults/${encodeURIComponent(vaultSlug)}/ai/threads`, payload);
+  }
+
+  public async getAiThreadMessages(
+    vaultSlug: string,
+    threadId: number
+  ): Promise<{ status: string; thread: AiThreadItem; messages: AiMessageItem[] }> {
+    return this.aiJsonRequest(
+      'GET',
+      `/vaults/${encodeURIComponent(vaultSlug)}/ai/threads/${encodeURIComponent(String(threadId))}/messages`
+    );
+  }
+
+  public async sendAiMessage(
+    vaultSlug: string,
+    threadId: number,
+    prompt: string,
+    contextPaths?: string[]
+  ): Promise<AiSendMessageResponse> {
+    return this.aiJsonRequest(
+      'POST',
+      `/vaults/${encodeURIComponent(vaultSlug)}/ai/threads/${encodeURIComponent(String(threadId))}/messages`,
+      {
+        prompt,
+        ...(contextPaths && contextPaths.length > 0 ? { context_paths: contextPaths } : {}),
+      }
+    );
+  }
+
+  public async getAiRunStatus(
+    vaultSlug: string,
+    runId: string
+  ): Promise<{ status: string; run: AiRunItem }> {
+    return this.aiJsonRequest(
+      'GET',
+      `/vaults/${encodeURIComponent(vaultSlug)}/ai/runs/${encodeURIComponent(runId)}`
+    );
+  }
+
+  public async listAiProposals(
+    vaultSlug: string,
+    status = 'pending',
+    withDiff = true
+  ): Promise<{ status: string; proposals: AiProposalItem[] }> {
+    return this.aiJsonRequest(
+      'GET',
+      `/vaults/${encodeURIComponent(vaultSlug)}/ai/proposals?status=${encodeURIComponent(status)}&with_diff=${withDiff ? '1' : '0'}`
+    );
+  }
+
+  public async approveAiProposal(
+    vaultSlug: string,
+    proposalId: number,
+    overrideContent?: string
+  ): Promise<{ status: string; proposal?: AiProposalItem; applied_path?: string }> {
+    return this.aiJsonRequest(
+      'POST',
+      `/vaults/${encodeURIComponent(vaultSlug)}/ai/proposals/${encodeURIComponent(String(proposalId))}/approve`,
+      overrideContent !== undefined ? { override_content: overrideContent } : {}
+    );
+  }
+
+  public async rejectAiProposal(
+    vaultSlug: string,
+    proposalId: number,
+    reason?: string
+  ): Promise<{ status: string; proposal: AiProposalItem }> {
+    return this.aiJsonRequest(
+      'POST',
+      `/vaults/${encodeURIComponent(vaultSlug)}/ai/proposals/${encodeURIComponent(String(proposalId))}/reject`,
+      reason !== undefined ? { reason } : {}
+    );
+  }
+
+  public async smartMergeConflict(
+    vaultSlug: string,
+    payload: {
+      conflict_path: string;
+      canonical_path?: string;
+      instructions?: string;
+      canonical_content?: string;
+      conflict_content?: string;
+    }
+  ): Promise<AiSmartMergeResponse> {
+    return this.aiJsonRequest(
+      'POST',
+      `/vaults/${encodeURIComponent(vaultSlug)}/conflicts/smart-merge`,
+      payload
+    );
+  }
+
+  public async runGardener(
+    vaultSlug: string,
+    payload: { path?: string; max_files?: number } = {}
+  ): Promise<AiGardenerRunResponse> {
+    return this.aiJsonRequest(
+      'POST',
+      `/vaults/${encodeURIComponent(vaultSlug)}/ai/gardener/run`,
+      payload
+    );
   }
 }
