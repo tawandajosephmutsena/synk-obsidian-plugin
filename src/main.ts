@@ -115,8 +115,7 @@ export default class SynkkPlugin extends Plugin {
 
     // Status bar AI Pending Proposals Badge (server mode only)
     this.proposalsBadgeEl = this.addStatusBarItem();
-    this.proposalsBadgeEl.addClass('synkk-proposals-badge');
-    this.proposalsBadgeEl.style.display = 'none';
+    this.proposalsBadgeEl.addClass('synkk-proposals-badge', 'synkk-hidden');
     this.proposalsBadgeEl.setAttribute('title', 'Synkk AI: Review pending change proposals');
     this.proposalsBadgeEl.onClickEvent(() => {
       new AiProposalsModal(this.app, this).open();
@@ -479,7 +478,7 @@ export default class SynkkPlugin extends Plugin {
     }
 
     if (targetLeaf) {
-      this.app.workspace.revealLeaf(targetLeaf);
+      await this.app.workspace.revealLeaf(targetLeaf);
       if (targetLeaf.view instanceof SynkkAiSidebarView) {
         void targetLeaf.view.refreshState();
       }
@@ -509,7 +508,7 @@ export default class SynkkPlugin extends Plugin {
       !this.settings.selectedVaultSlug ||
       !this.settings.deviceToken
     ) {
-      this.proposalsBadgeEl.style.display = 'none';
+      this.proposalsBadgeEl.addClass('synkk-hidden');
       this.proposalsBadgeEl.setText('');
       return;
     }
@@ -523,10 +522,10 @@ export default class SynkkPlugin extends Plugin {
       const count = res.proposals?.length ?? 0;
       const badge = formatProposalsBadgeText(count);
       if (!badge) {
-        this.proposalsBadgeEl.style.display = 'none';
+        this.proposalsBadgeEl.addClass('synkk-hidden');
         this.proposalsBadgeEl.setText('');
       } else {
-        this.proposalsBadgeEl.style.display = '';
+        this.proposalsBadgeEl.removeClass('synkk-hidden');
         this.proposalsBadgeEl.setText(badge);
       }
     } catch {

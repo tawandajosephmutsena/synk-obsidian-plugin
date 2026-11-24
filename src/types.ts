@@ -126,7 +126,8 @@ export interface AiMessageCitation {
 export interface AiMessageItem {
   id: number;
   thread_id: number;
-  role: 'user' | 'assistant' | 'system' | string;
+  /** Typically 'user' | 'assistant' | 'system' */
+  role: string;
   content: string;
   citations?: AiMessageCitation[] | null;
   proposal_ids?: number[] | null;
@@ -138,7 +139,8 @@ export interface AiRunItem {
   id: number | string;
   run_id?: string;
   thread_id: number;
-  status: 'queued' | 'running' | 'streaming' | 'completed' | 'failed' | 'cancelled' | string;
+  /** Typically 'queued' | 'running' | 'streaming' | 'completed' | 'failed' | 'cancelled' */
+  status: string;
   partial_content?: string | null;
   status_note?: string | null;
   error_message?: string | null;
@@ -157,7 +159,8 @@ export interface AiSendMessageResponse {
 }
 
 export interface AiProposalDiffLine {
-  type: 'add' | 'remove' | 'context' | 'conflict' | string;
+  /** Typically 'add' | 'remove' | 'context' | 'conflict' */
+  type: string;
   content: string;
   old_line?: number | null;
   new_line?: number | null;
@@ -209,11 +212,13 @@ export interface AiProposalItem {
   target_path: string;
   destination_path?: string | null;
   file_path?: string;
-  action: 'create' | 'update' | 'append' | 'move' | 'delete' | 'rename' | 'tag' | string;
+  /** Typically 'create' | 'update' | 'append' | 'move' | 'delete' | 'rename' | 'tag' */
+  action: string;
   title?: string | null;
   rationale?: string | null;
   summary?: string | null;
-  status: 'pending' | 'approved' | 'rejected' | 'superseded' | 'applied' | string;
+  /** Typically 'pending' | 'approved' | 'rejected' | 'superseded' | 'applied' */
+  status: string;
   base_version?: number | null;
   base_content_hash?: string | null;
   proposed_content?: string | null;

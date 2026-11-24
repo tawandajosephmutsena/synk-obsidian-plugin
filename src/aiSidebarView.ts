@@ -206,7 +206,7 @@ export class SynkkAiSidebarView extends ItemView {
     this.toolbarEl.empty();
 
     const titleGroup = this.toolbarEl.createDiv({ cls: 'synkk-ai-title-group' });
-    titleGroup.createEl('span', {
+    titleGroup.createSpan({
       text: 'Synkk AI',
       cls: 'synkk-ai-title',
     });

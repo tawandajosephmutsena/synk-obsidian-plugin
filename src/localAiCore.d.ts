@@ -21,7 +21,8 @@ export interface LocalAiContextDocument {
 }
 
 export interface LocalAiChatMessage {
-  role: 'system' | 'user' | 'assistant' | string;
+  /** Typically 'system' | 'user' | 'assistant' */
+  role: string;
   content: string;
 }
 

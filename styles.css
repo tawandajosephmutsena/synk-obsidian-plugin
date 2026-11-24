@@ -772,6 +772,10 @@
 }
 
 /* Status Bar Proposals Badge */
+.synkk-hidden {
+  display: none;
+}
+
 .synkk-proposals-badge {
   cursor: pointer;
   color: var(--interactive-accent);

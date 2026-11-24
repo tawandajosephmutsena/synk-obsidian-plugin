@@ -1,10 +1,10 @@
 {
   "id": "synkk-sync",
   "name": "Synkk Team Vault Sync",
-  "minAppVersion": "1.4.0",
+  "minAppVersion": "1.7.2",
   "description": "Whole-file team vault sync with path permissions, selective device rules, and deletion safety controls.",
   "author": "Ottomate",
   "authorUrl": "https://ottomate.space",
   "isDesktopOnly": false,
-  "version": "1.1.0"
+  "version": "1.1.1"
 }

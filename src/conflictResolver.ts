@@ -175,8 +175,7 @@ export class ConflictResolverModal extends Modal {
       textArea.value = this.mergedText;
     };
 
-    const aiSummaryEl = container.createDiv({ cls: 'synkk-smart-merge-summary' });
-    aiSummaryEl.style.display = 'none';
+    const aiSummaryEl = container.createDiv({ cls: 'synkk-smart-merge-summary synkk-hidden' });
 
     if (this.plugin.settings.ragEnabled) {
       const instructionsRow = container.createDiv({
@@ -203,7 +202,7 @@ export class ConflictResolverModal extends Modal {
         const instructions = instructionsInput.value.trim() || undefined;
         smartMergeBtn.disabled = true;
         smartMergeBtn.setText('Merging with AI...');
-        aiSummaryEl.style.display = 'block';
+        aiSummaryEl.removeClass('synkk-hidden');
         aiSummaryEl.setText(
           this.plugin.settings.e2eeEnabled
             ? '🔒 Running Smart Merge locally with E2EE Local AI...'
