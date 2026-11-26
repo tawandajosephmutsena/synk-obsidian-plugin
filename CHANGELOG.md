@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-11-24
+
+### Changed
+- Bumped `minAppVersion` to `1.7.2` to align with current Obsidian Community Plugin review requirements.
+- Replaced inline `.style.display = 'none'` toggles with `.synkk-hidden` CSS utility classes across `main.ts`, `conflictResolver.ts`, and `styles.css`.
+- Awaited `workspace.revealLeaf()` when opening the AI sidebar, used `createSpan()` helpers in `aiSidebarView.ts`, and tightened TypeScript type definitions for Obsidian automated plugin review compliance.
+
+## [1.1.0] - 2026-11-22
+
+### Added
+- **Dockable Synkk AI Sidebar (`SynkkAiSidebarView`):** Streaming Cloud Copilot threads over Reverb (with HTTP polling fallback), active-note context toggle, clickable `[[wikilink]]` citation chips, copy/insert/save-as-note actions, and automatic fallback to Local AI on E2EE vaults.
+- **AI Change Inbox (`AiProposalsModal`) & Vault Gardener:** Review proposed AI edits (`create`, `update`, `append`, `move`, `delete`, `rename`, `tag`) with colored line diffs, staleness detection, optional override editing, and 1-click **Approve & Sync** or **Reject**, plus a live pending proposals status bar badge.
+- **AI Smart Merge:** Integrated semantic conflict merge inside the Visual Conflict Sandbox (routes to server `/conflicts/smart-merge` on standard vaults and Local AI on E2EE vaults).
+- **Zero-Knowledge E2EE Local AI (`LocalAiEngine`):** Pure-JS BM25 + 1-hop `[[wikilink]]` graph retrieval querying user-hosted Ollama (`llama3.2`) or OpenAI-compatible (LM Studio / LocalAI / BYOK) endpoints directly from Obsidian.
+
 ## [1.0.12] - 2026-10-06
 
 ### Fixed
